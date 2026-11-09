@@ -1,0 +1,39 @@
+
+Report:
+	* Time: 2026-11-09 10:31:09.715791917+08:00
+	* UDP: true
+	* IPv4: yes, 203.0.113.45:54039
+	* IPv6: yes, [2001:db8::1]:53588
+	* MappingVariesByDestIP: false
+	* PortMapping: UPnP, NAT-PMP, PCP
+	* CaptivePortal: false
+	* Nearest DERP: Hong Kong
+	* DERP latency:
+		- hkg: 48.2ms  (Hong Kong)
+		- tok: 68.3ms  (Tokyo)
+		- sin: 79.6ms  (Singapore)
+		- nue: 144.4ms (Nuremberg)
+		- dbi: 149.2ms (Dubai)
+		- sea: 172.2ms (Seattle)
+		- lax: 180.1ms (Los Angeles)
+		- sfo: 187.5ms (San Francisco)
+		- dfw: 205.4ms (Dallas)
+		- ord: 206.1ms (Chicago)
+		- nai: 208.1ms (Nairobi)
+		- par: 217ms   (Paris)
+		- tor: 220.5ms (Toronto)
+		- fra: 221.1ms (Frankfurt)
+		- lhr: 221.1ms (London)
+		- mad: 221.9ms (Madrid)
+		- ams: 222.8ms (Amsterdam)
+		- nyc: 229.1ms (New York City)
+		- waw: 233ms   (Warsaw)
+		- iad: 234.2ms (Ashburn)
+		- den: 239ms   (Denver)
+		- mia: 239.5ms (Miami)
+		- syd: 242.4ms (Sydney)
+		- jnb: 243.7ms (Johannesburg)
+		- hel: 251.6ms (Helsinki)
+		- sao: 339.1ms (São Paulo)
+		- bom:         (Mumbai)
+		- hnl:         (Honolulu)

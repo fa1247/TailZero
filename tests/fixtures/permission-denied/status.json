@@ -1,0 +1,57 @@
+{
+  "Version": "1.104.5-t788384763-gd9218e278",
+  "TUN": true,
+  "BackendState": "Running",
+  "HaveNodeKey": true,
+  "AuthURL": "",
+  "TailscaleIPs": [
+    "100.101.102.103",
+    "fd7a:115c:a1e0::1:2a3"
+  ],
+  "Self": {
+    "ID": "nSelfExample01CNTRL",
+    "HostName": "tailzero",
+    "DNSName": "tailzero.tailnet-example.ts.net.",
+    "OS": "linux",
+    "TailscaleIPs": [
+      "100.101.102.103",
+      "fd7a:115c:a1e0::1:2a3"
+    ],
+    "Online": true,
+    "Active": false
+  },
+  "Health": [],
+  "MagicDNSSuffix": "tailnet-example.ts.net",
+  "CurrentTailnet": {
+    "Name": "user@example.com",
+    "MagicDNSSuffix": "tailnet-example.ts.net",
+    "MagicDNSEnabled": true
+  },
+  "ExtraRecords": null,
+  "Peer": {
+    "nodekey:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+      "ID": "nRaspberryPi01CNTRL",
+      "HostName": "raspberrypi",
+      "DNSName": "raspberrypi.tailnet-example.ts.net.",
+      "OS": "linux",
+      "TailscaleIPs": [
+        "100.64.1.10",
+        "fd7a:115c:a1e0::a01:2b3"
+      ],
+      "CurAddr": "192.168.1.5:41641",
+      "Relay": "hkg",
+      "Online": true,
+      "Active": true,
+      "ExitNode": false,
+      "ExitNodeOption": false
+    }
+  },
+  "User": {
+    "1000000000000001": {
+      "ID": 1000000000000001,
+      "LoginName": "user@example.com",
+      "DisplayName": "Example User"
+    }
+  },
+  "ClientVersion": null
+}

@@ -1,0 +1,69 @@
+{
+  "Version": "1.104.5-t788384763-gd9218e278",
+  "TUN": true,
+  "BackendState": "Running",
+  "HaveNodeKey": true,
+  "AuthURL": "",
+  "TailscaleIPs": [
+    "100.101.102.103",
+    "fd7a:115c:a1e0::1:2a3"
+  ],
+  "Self": {
+    "ID": "nSelfExample01CNTRL",
+    "NodeID": 1234567890123456,
+    "PublicKey": "nodekey:1111111111111111111111111111111111111111111111111111111111111111",
+    "HostName": "tailzero",
+    "DNSName": "tailzero.tailnet-example.ts.net.",
+    "OS": "linux",
+    "UserID": 1000000000000001,
+    "TailscaleIPs": [
+      "100.101.102.103",
+      "fd7a:115c:a1e0::1:2a3"
+    ],
+    "AllowedIPs": [
+      "100.101.102.103/32",
+      "fd7a:115c:a1e0::1:2a3/128"
+    ],
+    "Addrs": [
+      "192.168.1.50:41641"
+    ],
+    "CurAddr": "",
+    "Relay": "hkg",
+    "PeerRelay": "",
+    "RxBytes": 0,
+    "TxBytes": 0,
+    "Created": "2026-11-08T02:16:38.029029724Z",
+    "LastWrite": "0001-01-01T00:00:00Z",
+    "LastSeen": "0001-01-01T00:00:00Z",
+    "LastHandshake": "0001-01-01T00:00:00Z",
+    "Online": true,
+    "ExitNode": false,
+    "ExitNodeOption": false,
+    "Active": false,
+    "PeerAPIURL": null,
+    "TaildropTarget": 0,
+    "NoFileSharingReason": "",
+    "InNetworkMap": true,
+    "InMagicSock": false,
+    "InEngine": false
+  },
+  "Health": [],
+  "MagicDNSSuffix": "tailnet-example.ts.net",
+  "CurrentTailnet": {
+    "Name": "user@example.com",
+    "StableID": "StExample01CNTRL",
+    "MagicDNSSuffix": "tailnet-example.ts.net",
+    "MagicDNSEnabled": true
+  },
+  "CertDomains": null,
+  "ExtraRecords": null,
+  "Peer": {},
+  "User": {
+    "1000000000000001": {
+      "ID": 1000000000000001,
+      "LoginName": "user@example.com",
+      "DisplayName": "Example User"
+    }
+  },
+  "ClientVersion": null
+}

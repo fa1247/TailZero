@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=TailZero
+Comment=Manage Tailscale on your Cardputer Zero
+Exec=/usr/bin/tailzero
+Icon=share/images/tailzero.png
+Terminal=false
+Categories=Utility;
+StartupNotify=false

@@ -1,0 +1,5 @@
+No permission to manage Tailscale. Set operator by running:
+
+sudo tailscale set --operator=$USER
+
+See https://tailscale.com/s/cli-operator for more information.

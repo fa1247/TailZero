@@ -1,0 +1,19 @@
+# Build artifacts
+build/
+dist/
+.cache/
+*.o
+*.a
+*.deb
+compile_commands.json
+
+# Recon / scratch (local investigation only, never part of the app)
+.recon/
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local development spec / deployment notes (not part of the public repo)
+ROADMAP.md

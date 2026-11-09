@@ -1,0 +1,1 @@
+failed to connect to local tailscaled (which appears to be running as tailscaled, pid 1234). Got error: Failed to connect to local Tailscale daemon for /localapi/v0/status; not running? Error: dial unix /var/run/tailscale/tailscaled.sock: connect: no such file or directory

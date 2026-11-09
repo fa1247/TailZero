@@ -1,0 +1,32 @@
+{
+  "Regions": {
+    "1": { "RegionID": 1, "RegionCode": "nyc", "RegionName": "New York City" },
+    "2": { "RegionID": 2, "RegionCode": "sfo", "RegionName": "San Francisco" },
+    "3": { "RegionID": 3, "RegionCode": "sin", "RegionName": "Singapore" },
+    "4": { "RegionID": 4, "RegionCode": "fra", "RegionName": "Frankfurt" },
+    "5": { "RegionID": 5, "RegionCode": "syd", "RegionName": "Sydney" },
+    "6": { "RegionID": 6, "RegionCode": "bom", "RegionName": "Mumbai" },
+    "7": { "RegionID": 7, "RegionCode": "tok", "RegionName": "Tokyo" },
+    "8": { "RegionID": 8, "RegionCode": "lhr", "RegionName": "London" },
+    "9": { "RegionID": 9, "RegionCode": "dfw", "RegionName": "Dallas" },
+    "10": { "RegionID": 10, "RegionCode": "sea", "RegionName": "Seattle" },
+    "11": { "RegionID": 11, "RegionCode": "sao", "RegionName": "São Paulo" },
+    "12": { "RegionID": 12, "RegionCode": "ord", "RegionName": "Chicago" },
+    "13": { "RegionID": 13, "RegionCode": "den", "RegionName": "Denver" },
+    "14": { "RegionID": 14, "RegionCode": "ams", "RegionName": "Amsterdam" },
+    "15": { "RegionID": 15, "RegionCode": "jnb", "RegionName": "Johannesburg" },
+    "16": { "RegionID": 16, "RegionCode": "mia", "RegionName": "Miami" },
+    "17": { "RegionID": 17, "RegionCode": "lax", "RegionName": "Los Angeles" },
+    "18": { "RegionID": 18, "RegionCode": "par", "RegionName": "Paris" },
+    "19": { "RegionID": 19, "RegionCode": "mad", "RegionName": "Madrid" },
+    "20": { "RegionID": 20, "RegionCode": "hkg", "RegionName": "Hong Kong" },
+    "21": { "RegionID": 21, "RegionCode": "tor", "RegionName": "Toronto" },
+    "22": { "RegionID": 22, "RegionCode": "waw", "RegionName": "Warsaw" },
+    "23": { "RegionID": 23, "RegionCode": "dbi", "RegionName": "Dubai" },
+    "24": { "RegionID": 24, "RegionCode": "hnl", "RegionName": "Honolulu" },
+    "25": { "RegionID": 25, "RegionCode": "nai", "RegionName": "Nairobi" },
+    "26": { "RegionID": 26, "RegionCode": "nue", "RegionName": "Nuremberg" },
+    "27": { "RegionID": 27, "RegionCode": "iad", "RegionName": "Ashburn" },
+    "28": { "RegionID": 28, "RegionCode": "hel", "RegionName": "Helsinki" }
+  }
+}

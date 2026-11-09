@@ -1,0 +1,48 @@
+{
+  "app_name": "TailZero",
+  "package_name": "tailzero",
+  "version": "0.1.0",
+  "bin_name": "tailzero",
+  "description": "Tailscale mesh manager for Cardputer Zero",
+
+  "store": {
+    "summary": "Manage your Tailscale mesh from Cardputer Zero: status, peers, ping, netcheck.",
+    "description": "TailZero is a native Cardputer Zero front end for Tailscale. It reads live state from the local tailscaled daemon through the official tailscale CLI and never implements a VPN protocol itself.\n\n- Home: connection state, Tailscale IPv4/IPv6, tailnet name, online peer count and version.\n- Devices: scrollable tailnet peer list with online/offline state and DIRECT / DERP relay path.\n- Device details: OS, addresses, last seen time and a one-key Tailscale ping.\n- Ping: per-peer latency and route with progress, cancel, and clear timeout/offline errors.\n- Network check: UDP and IPv4/IPv6 connectivity, NAT mapping, preferred DERP region and latencies.\n\nThe app runs as a normal user with network access only, refreshes status in the background, and calls tailscale up/down without ever asking for a root password. Connection control needs the one-time `sudo tailscale set --operator=<user>` deployment step; without it TailZero explains what is missing instead of failing.\n\nKeys: Up/Down move the selection, Enter activates, Esc goes back, and a long Esc press exits. Tailscale itself is never modified: no daemon stop, no package installs, no protocol reimplementation.",
+    "locales": {
+      "zh-CN": {
+        "summary": "在 Cardputer Zero 上管理 Tailscale：状态、设备列表、Ping 与网络诊断。",
+        "description": "TailZero 是 Cardputer Zero 原生的 Tailscale 管理界面。它通过官方 tailscale 命令行读取本机 tailscaled 的实时状态，不实现任何 VPN 协议，也不会停止 tailscaled 服务。\n\n- 主页：连接状态、Tailscale IPv4/IPv6、Tailnet 名称、在线设备数与版本。\n- 设备：可滚动设备列表，显示在线/离线状态与 DIRECT / DERP 中继路径。\n- 设备详情：系统、地址、最近在线时间，一键发起 Tailscale Ping。\n- Ping：显示延迟与连接方式，支持进度、取消，并区分超时、离线与错误。\n- 网络诊断：UDP、IPv4/IPv6 连通性、NAT 映射、首选 DERP 区域与延迟。\n\n应用以普通用户运行，仅使用网络权限，不会索要 root 密码。连接管理需要部署时执行一次 `sudo tailscale set --operator=<用户名>`；未配置时应用会给出明确提示而不是直接失败。\n\n按键：上下移动、Enter 确认、Esc 返回、长按 Esc 退出。"
+      },
+      "ja": {
+        "summary": "Cardputer Zero で Tailscale を管理：状態、ピア一覧、Ping、ネットワーク診断。",
+        "description": "TailZero は Cardputer Zero ネイティブの Tailscale 管理アプリです。公式の tailscale コマンドでローカルの tailscaled の状態を読み取り、VPN プロトコル自体は実装しません。tailscaled サービスを停止することもありません。\n\n- ホーム：接続状態、Tailscale IPv4/IPv6、Tailnet 名、オンラインピア数、バージョン。\n- デバイス：スクロール可能なピア一覧。オンライン/オフラインと DIRECT / DERP 経由を表示。\n- デバイス詳細：OS、アドレス、最終オンライン時刻、ワンキーで Tailscale Ping。\n- Ping：遅延と経路を表示。進捗、キャンセル、タイムアウト/オフライン/エラーを区別。\n- ネットワーク診断：UDP、IPv4/IPv6 接続性、NAT マッピング、優先 DERP リージョンと遅延。\n\n通常ユーザーとして動作し、ネットワーク権限のみを使用します。root パスワードは要求しません。接続操作には導入時に一度 `sudo tailscale set --operator=<ユーザー名>` が必要で、未設定時は分かりやすい案内を表示します。\n\nキー操作：上下で移動、Enter で決定、Esc で戻る、Esc 長押しで終了。"
+      }
+    },
+    "icon": "assets/share/images/tailzero.png",
+    "screenshots": [
+      "screenshot/01-home.png",
+      "screenshot/02-devices.png",
+      "screenshot/03-details.png",
+      "screenshot/04-ping.png"
+    ],
+    "categories": ["System Tools", "Security"],
+    "permissions": {
+      "camera": false,
+      "microphone": false,
+      "imu": false,
+      "network": true,
+      "additional_hardware": false,
+      "background_service": false,
+      "external_display": false
+    },
+    "author": {
+      "display_name": "TailZero contributors",
+      "github": "fa1247"
+    },
+    "source_repo": "https://github.com/fa1247/TailZero",
+    "license": "MIT",
+    "share_code": "TLZ0",
+    "published_at": "2026-11-09T10:30:00+08:00",
+    "updated_at": "2026-11-09T13:05:00+08:00"
+  }
+}

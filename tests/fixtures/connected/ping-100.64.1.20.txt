@@ -1,0 +1,1 @@
+pong from server (100.64.1.20) via DERP(hkg) in 42ms

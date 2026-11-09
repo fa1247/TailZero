@@ -1,0 +1,58 @@
+{
+  "Version": "1.104.5-t788384763-gd9218e278",
+  "TUN": false,
+  "BackendState": "Stopped",
+  "HaveNodeKey": true,
+  "AuthURL": "",
+  "TailscaleIPs": null,
+  "Self": {
+    "ID": "nSelfExample01CNTRL",
+    "NodeID": 1234567890123456,
+    "PublicKey": "nodekey:1111111111111111111111111111111111111111111111111111111111111111",
+    "HostName": "tailzero",
+    "DNSName": "tailzero.tailnet-example.ts.net.",
+    "OS": "linux",
+    "UserID": 1000000000000001,
+    "TailscaleIPs": [],
+    "AllowedIPs": [],
+    "Addrs": null,
+    "CurAddr": "",
+    "Relay": "",
+    "PeerRelay": "",
+    "RxBytes": 0,
+    "TxBytes": 0,
+    "Created": "2026-11-08T02:16:38.029029724Z",
+    "LastWrite": "0001-01-01T00:00:00Z",
+    "LastSeen": "0001-01-01T00:00:00Z",
+    "LastHandshake": "0001-01-01T00:00:00Z",
+    "Online": false,
+    "ExitNode": false,
+    "ExitNodeOption": false,
+    "Active": false,
+    "PeerAPIURL": null,
+    "TaildropTarget": 0,
+    "NoFileSharingReason": "",
+    "InNetworkMap": true,
+    "InMagicSock": false,
+    "InEngine": false
+  },
+  "Health": [],
+  "MagicDNSSuffix": "tailnet-example.ts.net",
+  "CurrentTailnet": {
+    "Name": "user@example.com",
+    "StableID": "StExample01CNTRL",
+    "MagicDNSSuffix": "tailnet-example.ts.net",
+    "MagicDNSEnabled": true
+  },
+  "CertDomains": null,
+  "ExtraRecords": null,
+  "Peer": {},
+  "User": {
+    "1000000000000001": {
+      "ID": 1000000000000001,
+      "LoginName": "user@example.com",
+      "DisplayName": "Example User"
+    }
+  },
+  "ClientVersion": null
+}
