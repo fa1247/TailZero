@@ -51,6 +51,8 @@ struct AppState {
     std::string ping_target_name;
     std::string ping_progress;     ///< latest progress line from the worker
     int ping_elapsed_ms = 0;
+    int ping_attempts = 0;         ///< attempts already sent in the current run
+    int ping_max_attempts = 10;    ///< tailscale ping limit (10 attempts)
 
     // ---- network diagnostics ----
     OpState netcheck_state = OpState::Idle;

@@ -220,10 +220,10 @@ README/PUBLISH records refer to.
 
 ### Build and tests
 
-- `pwsh tools/dev.ps1 build -Slot lead` → `build/tailzero` 1,189,128 bytes and
+- `pwsh tools/dev.ps1 build -Slot lead` → `build/tailzero` 1,189,648 bytes and
   `build/tailzero-ui-preview`; LVGL 9.5.0 prebuilt static, keyed on
   `src/config/lv_conf.h`; zero compiler warnings in `src/ui` and `src/preview`.
-- `pwsh tools/dev.ps1 test -Slot backend` → **79/79 tests passed**: `json_lite`,
+- `pwsh tools/dev.ps1 test -Slot backend` → **83/83 tests passed**: `json_lite`,
   status/ping/netcheck parsers over 9 fixture scenarios, command runner
   (timeout/cancel), Tailscale client on real+fake subprocess paths, mock backend.
 
@@ -232,6 +232,15 @@ README/PUBLISH records refer to.
 - Status `Running`, 12 peers / 6 online; direct ping 8–61 ms; netcheck UDP OK,
   IPv4 OK, IPv6 OK, UPnP+NAT-PMP+PCP port mapping, preferred DERP `hkg`
   (Hong Kong).
+- Continuous ping (CLI semantics: one ping per second, max 10, stop on direct):
+  direct peer → stops after **1/10 attempts · direct path** (28 ms, then 5 ms);
+  relayed peer → progress shows `attempt 1/10 · Enter cancels` while running and
+  a direct path is adopted as soon as it appears; deterministic mock scenarios
+  cover the remaining states: DERP-only → `DERP hkg`, `10/10 attempts · no direct
+  path`; peer relay → `Peer relay`, `3/10 attempts · no direct path`; offline →
+  `Timeout`, `3/10 attempts`. Screenshots: `.recon/ping-pending.png`,
+  `.recon/ping-relay-pending.png`, `.recon/ping-mock-derp.png`,
+  `.recon/ping-mock-peerrelay.png`, `.recon/ping-mock-timeout2.png`.
 - Connection management as the tailscale operator (`$USER`): `tailscale down` → `Stopped`,
   `tailscale up` → `Running`; Home correctly shows Connected / Disconnected /
   Needs login (mocked) / bad JSON (mocked) states.
@@ -242,9 +251,9 @@ README/PUBLISH records refer to.
 - Performance (`tools/device/measure.sh`): startup-to-ready **167 ms**, CPU
   **1.5 %** idle with the 5 s refresh, VmRSS **4.4 MB** (VmHWM 4.4 MB), 2 threads,
   6 open fds, binary 1.19 MB.
-- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 453,236 B;
+- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 456,076 B;
   `dpkg -s tailzero` → `install ok installed`, version `0.1.0-1`, arm64;
-  `/usr/bin/tailzero` 0755 root:root 1,189,128 bytes; APPLaunch is active and
+  `/usr/bin/tailzero` 0755 root:root 1,189,648 bytes; APPLaunch is active and
   shows the entry with the TailZero name and icon (`Exec=/usr/bin/tailzero`,
   `Terminal=false`).
 

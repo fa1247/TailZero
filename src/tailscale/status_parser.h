@@ -36,12 +36,18 @@ NetcheckReport parse_netcheck_text(const std::string& text);
 /** Structured result of parsing `tailscale ping` stdout/stderr. */
 struct PingParseResult {
     PingOutcome outcome = PingOutcome::Error;
-    int latency_ms = -1;      ///< first pong latency, -1 when unknown
+    int latency_ms = -1;      ///< latency of the last pong, -1 when unknown
     bool via_derp = false;
+    bool via_peer_relay = false;
     std::string relay;        ///< DERP code when relayed
-    std::string addr;         ///< direct address when not relayed
+    std::string addr;         ///< direct address when direct
+    std::string peer_relay;   ///< peer-relay target when relayed by a peer
     std::string peer_name;
     std::string detail;       ///< chosen error/progress line for the UI
+    int attempts = 0;         ///< pings attempted (pongs + timeouts)
+    int max_attempts = 10;    ///< limit used by the CLI (tailscale default)
+    bool direct_established = false;
+    bool direct_unavailable = false;
 };
 
 /**

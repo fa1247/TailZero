@@ -100,14 +100,20 @@ struct PingResult {
     PingOutcome outcome = PingOutcome::Error;
     int latency_ms = -1;
     bool via_derp = false;
-    std::string relay;        ///< DERP code / region when via_derp
-    std::string addr;         ///< direct "ip:port" when not relayed
+    bool via_peer_relay = false;        ///< relayed through another peer (peer-relay)
+    std::string relay;                  ///< DERP code / region when via_derp
+    std::string addr;                   ///< direct "ip:port" when direct
+    std::string peer_relay;             ///< peer-relay target, e.g. "1.2.3.4:40000:vni:369"
     std::string peer_name;
     std::string peer_ip;
-    std::string error;        ///< human readable failure detail
-    std::string raw_excerpt;  ///< last relevant output lines (bounded)
+    std::string error;                  ///< human readable failure detail
+    std::string raw_excerpt;            ///< last relevant output lines (bounded)
     int exit_code = -1;
     int elapsed_ms = 0;
+    int attempts = 0;                   ///< ping attempts actually sent
+    int max_attempts = 10;              ///< tailscale ping default: 10 pings
+    bool direct_established = false;    ///< a direct (non-relayed) path answered
+    bool direct_unavailable = false;    ///< CLI reported "direct connection not established"
 };
 
 /** Result of `tailscale netcheck --format=json` (falls back to text parsing). */

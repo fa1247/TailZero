@@ -38,9 +38,11 @@ The UI is a small stack of pages, driven entirely by the keyboard:
 - **Device details** — selected peer's host name, IPv4/IPv6 addresses, OS,
   online state, link type, DERP relay code and last-seen time, with actions
   *Ping*, *Refresh* and *Back*.
-- **Ping** — runs `tailscale ping <device-ip>` in the background, shows progress,
-  latency and the route (direct address or DERP region), supports cancel and
-  distinguishes success, timeout, offline peer and command errors.
+- **Ping** — runs `tailscale ping <device-ip>` in the background with the CLI
+  semantics: one ping per second, at most 10 attempts, stopping early as soon as
+  a direct path is established. The page shows the attempt counter, the latest
+  latency and the route (direct address, DERP region or peer relay), supports
+  cancel, and distinguishes success, timeout, offline peer and command errors.
 - **Network check** — runs `tailscale netcheck` (JSON when available, text
   fallback) and summarizes UDP availability, IPv4/IPv6 connectivity, NAT port
   mapping, hair-pinning and the preferred DERP region with its latency.
@@ -258,8 +260,8 @@ Measured on the reference device (Debian 13 trixie aarch64, g++ 14.2,
 cmake 3.31.6, LVGL 9.5.0 linked statically, Tailscale 1.104.5):
 
 - Build clean with zero warnings in `src/ui` and `src/preview`;
-  `build/tailzero` is 1,189,128 bytes.
-- **79/79** unit tests pass (`pwsh tools/dev.ps1 test`).
+  `build/tailzero` is 1,189,648 bytes.
+- **83/83** unit tests pass (`pwsh tools/dev.ps1 test`).
 - Real tailnet: 12 peers / 6 online, direct ping 8–61 ms, netcheck UDP + IPv4 +
   IPv6 OK, UPnP/NAT-PMP/PCP mapping, preferred DERP `hkg`; `tailscale down`/`up`
   as operator switch the app between Disconnected and Connected.

@@ -102,7 +102,14 @@ void PingScreen::refresh_content(const AppState& state, UiModel& ui) {
         hero_color = color::kAccent;
         spinner_visible = true;
         info = state.ping_progress.empty() ? std::string("waiting for a reply") : state.ping_progress;
-        detail = "Enter cancels the ping";
+        if (state.ping_max_attempts > 0) {
+            detail = "attempt " + std::to_string(state.ping_attempts) + "/" +
+                     std::to_string(state.ping_max_attempts) + " " + LV_SYMBOL_BULLET +
+                     " Enter cancels";
+        }
+        else {
+            detail = "Enter cancels the ping";
+        }
         detail2 = format_elapsed_ms(state.ping_elapsed_ms);
     }
     else if (finished) {
@@ -110,24 +117,48 @@ void PingScreen::refresh_content(const AppState& state, UiModel& ui) {
             case PingOutcome::Success:
                 hero = ping.latency_ms >= 0 ? std::to_string(ping.latency_ms) + " ms" : "Success";
                 hero_color = color::kAccent;
-                route = ping.via_derp ? (ping.relay.empty() ? "DERP" : "DERP " + ping.relay)
-                                      : "Direct";
-                route_color = ping.via_derp ? color::kRelay : color::kAccent;
+                if (ping.via_derp) {
+                    route = ping.relay.empty() ? "DERP" : "DERP " + ping.relay;
+                }
+                else if (ping.via_peer_relay) {
+                    route = "Peer relay";
+                }
+                else {
+                    route = "Direct";
+                }
+                route_color = (ping.via_derp || ping.via_peer_relay) ? color::kRelay : color::kAccent;
                 info = "Success";
                 if (ping.via_derp) {
                     detail = "relayed through a DERP server";
                 }
+                else if (ping.via_peer_relay) {
+                    detail = ping.peer_relay.empty() ? "relayed through another peer"
+                                                     : "relay " + ping.peer_relay;
+                }
                 else {
                     detail = ping.addr.empty() ? "peer to peer" : "via " + ping.addr;
                 }
-                detail2 = ping.raw_excerpt;
+                detail2 = std::to_string(ping.attempts) + "/" +
+                          std::to_string(ping.max_attempts) + " attempts";
+                if (!ping.via_derp && !ping.via_peer_relay && ping.direct_established) {
+                    detail2 += std::string(" ") + LV_SYMBOL_BULLET + " direct path";
+                }
+                else if (ping.direct_unavailable) {
+                    detail2 += std::string(" ") + LV_SYMBOL_BULLET + " no direct path";
+                }
                 break;
             case PingOutcome::Timeout:
                 hero = "Timeout";
                 hero_color = color::kWarn;
                 info = "No reply from the peer";
                 detail = "The peer may be offline or unreachable";
-                detail2 = ping.raw_excerpt;
+                detail2 = std::to_string(ping.attempts) + "/" +
+                          std::to_string(ping.max_attempts) + " attempts";
+                /* The backend already reports "No reply after N attempt(s).";
+                   only add extra detail when it carries other information. */
+                if (!ping.error.empty() && ping.error.rfind("No reply", 0) != 0) {
+                    detail2 += std::string(" ") + LV_SYMBOL_BULLET + " " + short_error(ping.error);
+                }
                 break;
             case PingOutcome::NoMatchingPeer:
                 hero = "No peer";

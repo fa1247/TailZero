@@ -153,6 +153,8 @@ void AppService::request_ping(const PeerInfo& peer) {
         state_.ping_target_name = peer.display_name();
         state_.ping_progress = "Waiting for reply...";
         state_.ping_elapsed_ms = 0;
+        state_.ping_attempts = 0;
+        state_.ping_max_attempts = 10;
     }
     cancel_ping_.store(false);
     cv_.notify_one();
@@ -364,9 +366,17 @@ void AppService::do_ping(const PeerInfo& peer) {
     });
 
     auto on_progress = [this, started](const std::string& line) {
+        /* tailscale ping prints one line per attempt: a pong, or
+           ping "<ip>" timed out. Count them so the UI can show n/10. */
+        const bool attempt_line =
+            line.rfind("pong from ", 0) == 0 ||
+            (line.rfind("ping \"", 0) == 0 && line.find("timed out") != std::string::npos);
         publish([&](AppState& state) {
             state.ping_progress = line;
             state.ping_elapsed_ms = static_cast<int>(now_ms() - started);
+            if (attempt_line && state.ping_attempts < state.ping_max_attempts) {
+                ++state.ping_attempts;
+            }
         });
     };
 
@@ -387,6 +397,8 @@ void AppService::do_ping(const PeerInfo& peer) {
     publish([&](AppState& state) {
         state.ping = result;
         state.ping_elapsed_ms = elapsed;
+        state.ping_attempts = result.attempts > 0 ? result.attempts : state.ping_attempts;
+        state.ping_max_attempts = result.max_attempts;
         state.ping_state = (result.outcome == PingOutcome::Success) ? OpState::Done : OpState::Failed;
         if (result.outcome == PingOutcome::Cancelled) {
             state.ping_state = OpState::Idle;

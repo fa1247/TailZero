@@ -492,20 +492,142 @@ NetcheckReport parse_netcheck_text(const std::string& text) {
 // ---------------------------------------------------------------------------
 // tailscale ping
 // ---------------------------------------------------------------------------
+namespace {
+
+/** Route taken by a single "pong from ..." line. */
+struct PongRoute {
+    bool valid = false;
+    std::string peer_name;
+    bool via_derp = false;
+    bool via_peer_relay = false;
+    std::string relay;
+    std::string addr;
+    std::string peer_relay;
+    int latency_ms = -1;
+};
+
+/**
+ * Parse one reply line:
+ *   pong from <name> (<ip>) via DERP(hkg) in 42ms
+ *   pong from <name> (<ip>) via 192.168.1.5:41641 in 3ms
+ *   pong from <name> (<ip>) via peer-relay(1.2.3.4:40000:vni:369) in 12ms
+ */
+PongRoute parse_pong_line(const std::string& line) {
+    PongRoute route;
+    static constexpr const char* kPongPrefix = "pong from ";
+    if (!starts_with(line, kPongPrefix)) return route;
+
+    std::string rest = line.substr(std::string(kPongPrefix).size());
+    const std::size_t open = rest.rfind(" (");
+    if (open != std::string::npos) {
+        route.peer_name = rest.substr(0, open);
+        const std::size_t close = rest.find(')', open + 2);
+        if (close != std::string::npos) rest = rest.substr(close + 1);
+    }
+    const std::size_t via = rest.find(" via ");
+    if (via == std::string::npos) return route;
+
+    std::string tail = rest.substr(via + 5);
+    std::string duration;
+    const std::size_t in = tail.rfind(" in ");
+    if (in != std::string::npos) {
+        duration = trim(tail.substr(in + 4));
+        tail.resize(in);
+    }
+    tail = trim(tail);
+
+    if (starts_with(tail, "DERP(") || starts_with(tail, "DERP (")) {
+        route.via_derp = true;
+        const std::size_t left = tail.find('(');
+        const std::size_t right = tail.find(')', left == std::string::npos ? 0 : left);
+        if (left != std::string::npos && right != std::string::npos && right > left + 1) {
+            route.relay = tail.substr(left + 1, right - left - 1);
+        }
+    }
+    else if (starts_with(tail, "peer-relay(") || starts_with(tail, "peer-relay (")) {
+        route.via_peer_relay = true;
+        const std::size_t left = tail.find('(');
+        const std::size_t right = tail.rfind(')');
+        if (left != std::string::npos && right != std::string::npos && right > left + 1) {
+            route.peer_relay = tail.substr(left + 1, right - left - 1);
+        }
+    }
+    else {
+        route.addr = tail;
+    }
+
+    if (ends_with(duration, "ms")) {
+        route.latency_ms = parse_duration_to_ms(duration.substr(0, duration.size() - 2), false);
+    }
+    else if (ends_with(duration, "s")) {
+        route.latency_ms = parse_duration_to_ms(duration.substr(0, duration.size() - 1), true);
+    }
+    route.valid = true;
+    return route;
+}
+
+}  // namespace
+
+/**
+ * Aggregate the output of `tailscale ping`.
+ *
+ * The CLI sends one ping per second, stops after 10 pings (`--c 10`) or as soon
+ * as a direct path is established (`--until-direct`), and appends
+ * "direct connection not established" when a direct path was never found.
+ * The UI therefore reports the LAST reply (the one that ended the run) together
+ * with the attempt count and whether the path was direct, DERP or peer-relayed.
+ */
 PingParseResult parse_ping_output(const std::string& output, int exit_code, bool timed_out) {
     PingParseResult result;
+    result.max_attempts = 10;  // tailscale ping default count
 
-    std::string first_pong;
+    PongRoute last_pong;
+    bool have_pong = false;
+    bool any_timeout = false;
+    bool no_matching = false;
+    bool local_ip = false;
     std::string first_timeout;
+    std::string last_pong_line;
     std::string permission_line;
     std::string last_meaningful;
+
     for (const std::string& raw_line : split_lines(output)) {
         const std::string line = trim(raw_line);
         if (line.empty()) continue;
         last_meaningful = line;
         const std::string line_lower = to_lower_ascii(line);
-        if (first_pong.empty() && starts_with(line, "pong from ")) first_pong = line;
-        if (first_timeout.empty() && contains(line, "timed out")) first_timeout = line;
+
+        if (starts_with(line, "pong from ")) {
+            const PongRoute route = parse_pong_line(line);
+            if (route.valid) {
+                ++result.attempts;
+                have_pong = true;
+                last_pong = route;
+                last_pong_line = line;
+                if (!route.via_derp && !route.via_peer_relay) {
+                    result.direct_established = true;
+                }
+            }
+            continue;
+        }
+        if (starts_with(line, "ping ") && contains(line, "timed out")) {
+            ++result.attempts;
+            any_timeout = true;
+            if (first_timeout.empty()) first_timeout = line;
+            continue;
+        }
+        if (contains(line, "direct connection not established")) {
+            result.direct_unavailable = true;
+            continue;
+        }
+        if (contains(line_lower, "no matching peer")) {
+            no_matching = true;
+            continue;
+        }
+        if (contains(line_lower, "is local tailscale ip")) {
+            local_ip = true;
+            continue;
+        }
         if (permission_line.empty() &&
             (contains(line_lower, "no permission to manage") ||
              contains(line_lower, "access denied") || contains(line_lower, "must be root"))) {
@@ -513,65 +635,36 @@ PingParseResult parse_ping_output(const std::string& output, int exit_code, bool
         }
     }
 
-    if (!first_pong.empty()) {
+    if (have_pong) {
         result.outcome = PingOutcome::Success;
-        result.detail = first_pong;
-
-        // "pong from <name> (<ip>) via DERP(hkg) in 42ms"
-        // "pong from <name> (<ip>) via 1.2.3.4:41641 in 3ms"
-        const std::string prefix = "pong from ";
-        std::string rest = first_pong.substr(prefix.size());
-        const std::size_t open = rest.rfind(" (");
-        if (open != std::string::npos) {
-            result.peer_name = rest.substr(0, open);
-            const std::size_t close = rest.find(')', open + 2);
-            if (close != std::string::npos) {
-                // The peer address is informational only; the caller already
-                // knows which IP it asked for.
-                rest = rest.substr(close + 1);
-            }
-        }
-        const std::size_t via = rest.find(" via ");
-        if (via != std::string::npos) {
-            std::string route = rest.substr(via + 5);
-            const std::size_t in = route.find(" in ");
-            std::string duration;
-            if (in != std::string::npos) {
-                duration = route.substr(in + 4);
-                route.resize(in);
-            }
-            route = trim(route);
-            if (starts_with(route, "DERP(") || starts_with(route, "DERP (")) {
-                result.via_derp = true;
-                const std::size_t left = route.find('(');
-                const std::size_t right = route.find(')', left == std::string::npos ? 0 : left);
-                if (left != std::string::npos && right != std::string::npos && right > left + 1) {
-                    result.relay = route.substr(left + 1, right - left - 1);
-                }
-            } else {
-                result.addr = route;
-            }
-            const std::string value = trim(duration);
-            if (ends_with(value, "ms")) {
-                result.latency_ms = parse_duration_to_ms(value.substr(0, value.size() - 2), false);
-            } else if (ends_with(value, "s")) {
-                result.latency_ms = parse_duration_to_ms(value.substr(0, value.size() - 1), true);
-            }
-        }
+        result.detail = last_pong_line;
+        result.latency_ms = last_pong.latency_ms;
+        result.peer_name = last_pong.peer_name;
+        result.via_derp = last_pong.via_derp;
+        result.via_peer_relay = last_pong.via_peer_relay;
+        result.relay = last_pong.relay;
+        result.addr = last_pong.addr;
+        result.peer_relay = last_pong.peer_relay;
         return result;
     }
 
-    const std::string lower = to_lower_ascii(output);
-    if (contains(lower, "no matching peer")) {
+    if (no_matching) {
         result.outcome = PingOutcome::NoMatchingPeer;
         result.detail = "no matching peer";
         return result;
     }
-    if (!first_timeout.empty()) {
-        result.outcome = PingOutcome::Timeout;
-        result.detail = first_timeout;
+    if (local_ip) {
+        result.outcome = PingOutcome::Error;
+        result.detail = "this is the local Tailscale IP";
         return result;
     }
+    if (any_timeout) {
+        result.outcome = PingOutcome::Timeout;
+        result.detail = first_timeout.empty() ? "no reply" : first_timeout;
+        return result;
+    }
+
+    const std::string lower = to_lower_ascii(output);
     if (contains(lower, "failed to connect to local tailscaled") ||
         contains(lower, "not running?") || contains(lower, "dial unix")) {
         result.outcome = PingOutcome::Error;

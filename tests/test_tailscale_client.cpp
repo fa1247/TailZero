@@ -219,7 +219,8 @@ TZ_TEST(client_mock_ping_timeout) {
     const PingResult result = client.ping("100.64.3.30");
     TZ_CHECK_EQ(result.outcome, PingOutcome::Timeout);
     TZ_CHECK_EQ(result.exit_code, 1);
-    TZ_CHECK(result.error.find("timed out") != std::string::npos);
+    TZ_CHECK_EQ(result.attempts, 1);
+    TZ_CHECK(result.error.find("No reply after 1 attempt") != std::string::npos);
 }
 
 TZ_TEST(client_mock_netcheck) {
@@ -359,7 +360,10 @@ TZ_TEST(client_real_binary_end_to_end) {
                                             progress.push_back(line);
                                         });
     TZ_CHECK_EQ(ping.outcome, PingOutcome::Success);
-    TZ_CHECK_EQ(ping.latency_ms, 3);
+    /* The last reply ends the run (tailscale stops on a direct path). */
+    TZ_CHECK_EQ(ping.latency_ms, 2);
+    TZ_CHECK_EQ(ping.attempts, 2);
+    TZ_CHECK(ping.direct_established);
     TZ_CHECK_EQ(ping.exit_code, 0);
     TZ_CHECK_EQ(progress.size(), std::size_t(2));
 

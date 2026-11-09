@@ -303,8 +303,14 @@ PingResult mock_ping(const std::string& ip, const std::function<void(const std::
     result.outcome = parsed.outcome;
     result.latency_ms = parsed.latency_ms;
     result.via_derp = parsed.via_derp;
+    result.via_peer_relay = parsed.via_peer_relay;
     result.relay = parsed.relay;
     result.addr = parsed.addr;
+    result.peer_relay = parsed.peer_relay;
+    result.attempts = parsed.attempts;
+    result.max_attempts = parsed.max_attempts;
+    result.direct_established = parsed.direct_established;
+    result.direct_unavailable = parsed.direct_unavailable;
     if (!parsed.peer_name.empty()) result.peer_name = parsed.peer_name;
     result.exit_code = command.exit_code;
     result.raw_excerpt = tail_excerpt(combined, 512);
@@ -315,7 +321,11 @@ PingResult mock_ping(const std::string& ip, const std::function<void(const std::
     }
     switch (result.outcome) {
         case PingOutcome::Success: break;
-        case PingOutcome::Timeout: result.error = "Ping timed out."; break;
+        case PingOutcome::Timeout:
+            result.error = parsed.attempts > 0
+                               ? "No reply after " + std::to_string(parsed.attempts) + " attempt(s)."
+                               : "Ping timed out.";
+            break;
         case PingOutcome::NoMatchingPeer:
             result.error = "No matching peer: the IP is not part of this tailnet.";
             break;
@@ -644,7 +654,10 @@ PingResult TailscaleClient::ping(const std::string& ip, int timeout_ms,
         });
     }
 
-    const CommandResult run = runner_->run_streaming({binary_, "ping", ip}, timeout_ms, progress);
+    // Explicit semantics (same as the tailscale defaults): one ping per second,
+    // at most 10 pings, stop early once a direct path is established.
+    const CommandResult run = runner_->run_streaming(
+        {binary_, "ping", "--c", "10", "--until-direct", ip}, timeout_ms, progress);
     watcher_stop.store(true, std::memory_order_release);
     if (watcher.joinable()) watcher.join();
 
@@ -653,8 +666,14 @@ PingResult TailscaleClient::ping(const std::string& ip, int timeout_ms,
     result.outcome = parsed.outcome;
     result.latency_ms = parsed.latency_ms;
     result.via_derp = parsed.via_derp;
+    result.via_peer_relay = parsed.via_peer_relay;
     result.relay = parsed.relay;
     result.addr = parsed.addr;
+    result.peer_relay = parsed.peer_relay;
+    result.attempts = parsed.attempts;
+    result.max_attempts = parsed.max_attempts;
+    result.direct_established = parsed.direct_established;
+    result.direct_unavailable = parsed.direct_unavailable;
     if (!parsed.peer_name.empty()) result.peer_name = parsed.peer_name;
     result.exit_code = run.exit_code;
     result.raw_excerpt = tail_excerpt(combined, 512);
@@ -672,7 +691,11 @@ PingResult TailscaleClient::ping(const std::string& ip, int timeout_ms,
     }
     switch (result.outcome) {
         case PingOutcome::Success: break;
-        case PingOutcome::Timeout: result.error = "Ping timed out."; break;
+        case PingOutcome::Timeout:
+            result.error = parsed.attempts > 0
+                               ? "No reply after " + std::to_string(parsed.attempts) + " attempt(s)."
+                               : "Ping timed out.";
+            break;
         case PingOutcome::NoMatchingPeer:
             result.error = "No matching peer: the IP is not part of this tailnet.";
             break;

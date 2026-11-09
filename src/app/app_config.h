@@ -15,7 +15,9 @@ namespace tailzero {
 struct AppConfig {
     int refresh_interval_sec = 5;   ///< device list auto refresh period
     bool auto_refresh = true;
-    int ping_timeout_ms = 12000;
+    // Upper bound for one whole ping run: 10 attempts x 5 s per-attempt timeout
+    // plus overhead. The CLI itself stops after 10 pings or on a direct path.
+    int ping_timeout_ms = 60000;
     int netcheck_timeout_ms = 25000;
     std::string initial_page;       ///< dev/screenshot helper: force a start page
 

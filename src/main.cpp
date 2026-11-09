@@ -86,6 +86,11 @@ int main(int /*argc*/, char** /*argv*/) {
     actions.request_exit = []() { g_exit_requested.store(true); };
     actions.toast = [&service](const std::string& message) { service.show_toast(message); };
 
+    /* Dev/screenshot helper: preselect a peer index for Details / Ping. */
+    if (const char* peer_index = env_value("TAILZERO_DEMO_PEER")) {
+        ui.device_index = std::atoi(peer_index);
+    }
+
     ui::ScreenManager screens(ui, actions, [&service]() { return service.snapshot(); });
     manager = &screens;
 

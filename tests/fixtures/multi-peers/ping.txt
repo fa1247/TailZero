@@ -1,1 +1,2 @@
-pong from server (100.64.2.30) via DERP(nue) in 414ms
+pong from desktop (100.64.2.40) via DERP(hkg) in 41ms
+pong from desktop (100.64.2.40) via 10.0.0.9:41641 in 8ms
