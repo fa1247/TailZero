@@ -44,6 +44,10 @@ const char* to_string(PingOutcome outcome) {
 }
 
 const std::string& PeerInfo::display_name() const {
+    /* The Tailscale machine name is what the user sets/renames in the admin
+       console (e.g. "vmware"), while HostName is the OS host name (e.g.
+       "fan-VMware-Virtual-Platform"). Prefer the machine name. */
+    if (!machine_name.empty()) return machine_name;
     if (!host_name.empty()) return host_name;
     if (!dns_name.empty()) return dns_name;
     if (!ip4.empty()) return ip4;

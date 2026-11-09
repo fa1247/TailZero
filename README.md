@@ -32,10 +32,13 @@ The UI is a small stack of pages, driven entirely by the keyboard:
   same line, the tailnet name and Tailscale version (`name · vX.Y.Z`), the
   online/total peer count, and a menu with *Devices*, *Network check*,
   *Connect/Disconnect* and *Refresh*.
-- **Devices** — scrollable tailnet peer list showing name, Tailscale IPv4,
-  online/offline state and the current path (`DIRECT` or `DERP` relay). The
-  list is sorted online-first and never depends on the JSON peer order.
-- **Device details** — selected peer's host name, IPv4/IPv6 addresses, OS,
+- **Devices** — scrollable tailnet peer list showing the Tailscale **machine
+  name** (the device name set in the admin console, e.g. `vmware`), Tailscale
+  IPv4, online/offline state and the current path (`DIRECT`, `DERP` relay or
+  `peer relay`). The OS host name is only a fallback, so renamed devices are
+  shown the way the user names them. The list is sorted online-first by display
+  name and never depends on the JSON peer order.
+- **Device details** — selected peer's machine name, IPv4/IPv6 addresses, OS,
   online state, link type, DERP relay code and last-seen time, with actions
   *Ping*, *Refresh* and *Back*.
 - **Ping** — runs `tailscale ping <device-ip>` in the background with the CLI
@@ -268,7 +271,7 @@ Measured on the reference device (Debian 13 trixie aarch64, g++ 14.2,
 cmake 3.31.6, LVGL 9.5.0 linked statically, Tailscale 1.104.5):
 
 - Build clean with zero warnings in `src/ui` and `src/preview`;
-  `build/tailzero` is 1,189,624 bytes.
+  `build/tailzero` is 1,189,776 bytes.
 - **83/83** unit tests pass (`pwsh tools/dev.ps1 test`).
 - Real tailnet: 12 peers / 6 online, direct ping 8–61 ms, netcheck UDP + IPv4 +
   IPv6 OK, UPnP/NAT-PMP/PCP mapping, preferred DERP `hkg`; `tailscale down`/`up`

@@ -112,7 +112,7 @@ TZ_TEST(status_multi_peers_mix) {
 
     // Online first then name; ipad/phone are offline.
     const char* const expected[] = {
-        "desktop", "laptop", "nas", "raspberrypi", "server", "workstation.tailnet-example.ts.net", "ipad", "phone",
+        "desktop", "laptop", "nas", "raspberrypi", "server", "workstation", "ipad", "phone",
     };
     TZ_REQUIRE(snapshot.peers.size() == 8);
     for (std::size_t i = 0; i < 8; ++i) {
@@ -141,7 +141,7 @@ TZ_TEST(status_multi_peers_mix) {
     TZ_CHECK(phone->has_last_seen);
     TZ_CHECK_EQ(phone->link, PeerLink::Idle);  // offline relay is historical
 
-    const PeerInfo* workstation = find_peer(snapshot, "workstation.tailnet-example.ts.net");
+    const PeerInfo* workstation = find_peer(snapshot, "workstation");
     TZ_REQUIRE(workstation != nullptr);
     TZ_CHECK(workstation->host_name.empty());
 }
@@ -248,7 +248,8 @@ TZ_TEST(status_peer_fallbacks) {
         })");
     TZ_CHECK(snapshot.parsed);
     TZ_REQUIRE(snapshot.peers.size() == 2);
-    TZ_CHECK_EQ(snapshot.peers[0].display_name(), std::string("fallback.tailnet-example.ts.net"));
+    TZ_CHECK_EQ(snapshot.peers[0].display_name(), std::string("fallback"));
+    TZ_CHECK_EQ(snapshot.peers[0].machine_name, std::string("fallback"));
     TZ_CHECK_EQ(snapshot.peers[0].ip4, std::string("100.64.1.99"));  // from AllowedIPs
     TZ_CHECK_EQ(snapshot.peers[0].link, PeerLink::Direct);
     TZ_CHECK_EQ(snapshot.peers[1].display_name(), std::string("noip"));
@@ -256,6 +257,37 @@ TZ_TEST(status_peer_fallbacks) {
     TZ_CHECK_EQ(snapshot.peers[1].link, PeerLink::Unknown);
 }
 
+TZ_TEST(status_prefers_tailscale_machine_name) {
+    const StatusSnapshot snapshot = parse_status_json(
+        R"({
+            "BackendState": "Running",
+            "Peer": {
+                "nodekey:vmware": {
+                    "HostName": "fan-VMware-Virtual-Platform",
+                    "DNSName": "vmware.tailnet-example.ts.net.",
+                    "TailscaleIPs": ["100.64.9.10"],
+                    "Online": true,
+                    "CurAddr": "10.0.0.9:41641"
+                },
+                "nodekey:zzz": {
+                    "HostName": "aaa-os-host",
+                    "DNSName": "zzz.tailnet-example.ts.net.",
+                    "TailscaleIPs": ["100.64.9.20"],
+                    "Online": true,
+                    "CurAddr": "10.0.0.10:41641"
+                }
+            }
+        })");
+    TZ_CHECK(snapshot.parsed);
+    TZ_REQUIRE(snapshot.peers.size() == 2);
+    /* The UI shows the Tailscale machine name, not the OS host name. */
+    TZ_CHECK_EQ(snapshot.peers[0].display_name(), std::string("vmware"));
+    TZ_CHECK_EQ(snapshot.peers[0].machine_name, std::string("vmware"));
+    TZ_CHECK_EQ(snapshot.peers[0].host_name, std::string("fan-VMware-Virtual-Platform"));
+    TZ_CHECK_EQ(snapshot.peers[1].display_name(), std::string("zzz"));
+    /* Sorting uses the machine name ("aaa-os-host" would sort first otherwise). */
+    TZ_CHECK_EQ(snapshot.peers[0].ip4, std::string("100.64.9.10"));
+}
 TZ_TEST(status_not_logged_in_text_is_not_json) {
     const StatusSnapshot snapshot = parse_status_json(
         "To authenticate, visit:\n\n\thttps://login.tailscale.com/a/deadbeef\n");

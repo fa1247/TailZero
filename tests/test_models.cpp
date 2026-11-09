@@ -44,3 +44,14 @@ TZ_TEST(models_display_name_fallbacks) {
     peer.host_name = "host";
     TZ_CHECK_EQ(peer.display_name(), std::string("host"));
 }
+
+TZ_TEST(models_display_name_prefers_machine_name) {
+    PeerInfo peer;
+    peer.host_name = "fan-VMware-Virtual-Platform";  // OS host name reported by the node
+    peer.machine_name = "vmware";                    // Tailscale device name set by the user
+    peer.dns_name = "vmware.tailnet-example.ts.net";
+    TZ_CHECK_EQ(peer.display_name(), std::string("vmware"));
+
+    peer.machine_name.clear();
+    TZ_CHECK_EQ(peer.display_name(), std::string("fan-VMware-Virtual-Platform"));
+}

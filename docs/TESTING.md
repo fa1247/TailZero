@@ -220,7 +220,7 @@ README/PUBLISH records refer to.
 
 ### Build and tests
 
-- `pwsh tools/dev.ps1 build -Slot lead` → `build/tailzero` 1,189,624 bytes and
+- `pwsh tools/dev.ps1 build -Slot lead` → `build/tailzero` 1,189,776 bytes and
   `build/tailzero-ui-preview`; LVGL 9.5.0 prebuilt static, keyed on
   `src/config/lv_conf.h`; zero compiler warnings in `src/ui` and `src/preview`.
 - `pwsh tools/dev.ps1 test -Slot backend` → **83/83 tests passed**: `json_lite`,
@@ -229,7 +229,10 @@ README/PUBLISH records refer to.
 
 ### Runtime (real Tailscale)
 
-- Status `Running`, 12 peers / 6 online; direct ping 8–61 ms; netcheck UDP OK,
+- Status `Running`, 12 peers / 6 online; the Devices list shows the Tailscale
+  machine names (`vmware`, `win`, `laptop`, `rt`, `phone`, `uconsole`, …) instead
+  of the OS host names (`fan-VMware-Virtual-Platform`, `DESKTOP-15RQ88L`, …);
+  direct ping 8–61 ms; netcheck UDP OK,
   IPv4 OK, IPv6 OK, UPnP+NAT-PMP+PCP port mapping, preferred DERP `hkg`
   (Hong Kong).
 - Continuous ping (CLI semantics: one ping per second, max 10, stop on direct):
@@ -258,9 +261,9 @@ README/PUBLISH records refer to.
 - Performance (`tools/device/measure.sh`): startup-to-ready **167 ms**, CPU
   **1.5 %** idle with the 5 s refresh, VmRSS **4.4 MB** (VmHWM 4.4 MB), 2 threads,
   6 open fds, binary 1.19 MB.
-- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 456,444 B;
+- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 457,580 B;
   `dpkg -s tailzero` → `install ok installed`, version `0.1.0-1`, arm64;
-  `/usr/bin/tailzero` 0755 root:root 1,189,624 bytes; APPLaunch is active and
+  `/usr/bin/tailzero` 0755 root:root 1,189,776 bytes; APPLaunch is active and
   shows the entry with the TailZero name and icon (`Exec=/usr/bin/tailzero`,
   `Terminal=false`).
 

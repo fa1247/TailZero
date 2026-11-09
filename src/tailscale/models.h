@@ -39,7 +39,8 @@ const char* to_string(PeerLink link);
 
 struct PeerInfo {
     std::string id;             ///< stable node id (not used for sorting)
-    std::string host_name;      ///< short device name
+    std::string host_name;      ///< OS host name reported by the node
+    std::string machine_name;   ///< Tailscale device/machine name (first MagicDNS label)
     std::string dns_name;       ///< FQDN, trailing dot removed
     std::string os;
     std::string ip4;            ///< Tailscale IPv4, empty when absent
@@ -54,7 +55,11 @@ struct PeerInfo {
     std::string last_seen;      ///< RFC3339 timestamp, empty when never seen
     bool has_last_seen = false;
 
-    /** Name the UI should show: host name when available, else DNS name / IP. */
+    /**
+     * Name the UI should show: the Tailscale machine name (the device name set in
+     * the admin console / `tailscale up --hostname`), which is what the user
+     * recognises. Falls back to the OS host name, then the DNS name, then IPs.
+     */
     const std::string& display_name() const;
 };
 

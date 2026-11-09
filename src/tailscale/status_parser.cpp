@@ -108,6 +108,12 @@ bool is_zero_timestamp(const std::string& value) {
     return value.empty() || value.rfind("0001-01-01", 0) == 0;
 }
 
+/** Tailscale machine/device name: first label of the MagicDNS name. */
+std::string dns_first_label(const std::string& dns_name) {
+    if (dns_name.empty()) return {};
+    const std::size_t dot = dns_name.find('.');
+    return (dot == std::string::npos) ? dns_name : dns_name.substr(0, dot);
+}
 std::string strip_trailing_dot(std::string value) {
     if (!value.empty() && value.back() == '.') value.pop_back();
     return value;
@@ -295,6 +301,7 @@ StatusSnapshot parse_status_json(const std::string& text) {
             if (peer.id.empty()) peer.id = entry.first;
             peer.host_name = value.get_string("HostName");
             peer.dns_name = strip_trailing_dot(value.get_string("DNSName"));
+            peer.machine_name = dns_first_label(peer.dns_name);
             peer.os = value.get_string("OS");
             peer.ip4 = first_address(value.find("TailscaleIPs"), false);
             peer.ip6 = first_address(value.find("TailscaleIPs"), true);
