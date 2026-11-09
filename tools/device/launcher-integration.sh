@@ -48,7 +48,7 @@ trap restore_keyboard EXIT INT TERM
 
 cap() { python3 "$HOME/tzdev/fb_capture.py" "$CAP_DIR/$1.png" >/dev/null 2>&1; }
 wait_until() { while [ $(( $(date +%s%3N) - T_START )) -lt "$1" ]; do sleep 0.05; done; }
-[ -x "$BIN" ] || gcc -O2 -o "$BIN" "$ROOT/tools/device/uinput-keys.c" || exit 1
+gcc -O2 -o "$BIN" "$ROOT/tools/device/uinput-keys.c" || exit 1
 
 # Clamp to the first carousel item (LEFT x40 is idempotent), then step right.
 T=6000

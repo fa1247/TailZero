@@ -220,7 +220,7 @@ README/PUBLISH records refer to.
 
 ### Build and tests
 
-- `pwsh tools/dev.ps1 build -Slot lead` → `build/tailzero` 1,189,648 bytes and
+- `pwsh tools/dev.ps1 build -Slot lead` → `build/tailzero` 1,189,624 bytes and
   `build/tailzero-ui-preview`; LVGL 9.5.0 prebuilt static, keyed on
   `src/config/lv_conf.h`; zero compiler warnings in `src/ui` and `src/preview`.
 - `pwsh tools/dev.ps1 test -Slot backend` → **83/83 tests passed**: `json_lite`,
@@ -248,12 +248,19 @@ README/PUBLISH records refer to.
   (`tools/device/key-test.sh`): app opens the device, Up/Down selection,
   Enter (Devices → Details → Ping), Esc back and long-Esc clean exit
   ("shutting down") → **PASS**; step screenshots under `.recon/keytest/`.
+- Letter arrows, Space-as-OK and auto-repeat (`tools/device/key-features-test.sh`,
+  injected `KEY_SPACE` / `KEY_X` / `KEY_F` / held `KEY_X`): Space on Home opens
+  Devices exactly like Enter, plain `X` moves the Devices selection down twice
+  (1/8 → 2/8 → 3/8), plain `F` moves it back up (2/8), and holding `X` on the
+  Network check page scrolls continuously from the first rows down to the
+  region-latency rows (~2 s hold) → **PASS**; captures under `.recon/keyfeat/`.
+  The hint bars show `F/X Move`, `Enter/Space`, `F/X Scroll`, etc.
 - Performance (`tools/device/measure.sh`): startup-to-ready **167 ms**, CPU
   **1.5 %** idle with the 5 s refresh, VmRSS **4.4 MB** (VmHWM 4.4 MB), 2 threads,
   6 open fds, binary 1.19 MB.
-- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 456,076 B;
+- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 456,444 B;
   `dpkg -s tailzero` → `install ok installed`, version `0.1.0-1`, arm64;
-  `/usr/bin/tailzero` 0755 root:root 1,189,648 bytes; APPLaunch is active and
+  `/usr/bin/tailzero` 0755 root:root 1,189,624 bytes; APPLaunch is active and
   shows the entry with the TailZero name and icon (`Exec=/usr/bin/tailzero`,
   `Terminal=false`).
 
@@ -282,6 +289,7 @@ All under `tools/device/`; developer-only, **none are shipped in the `.deb`**:
 | `package.sh` | Stage the APPLaunch layout and build the `.deb` |
 | `install-deb.sh` | Validate + `dpkg -i` + APPLaunch restart (`--dry-run`, `--no-build`) |
 | `key-test.sh` | End-to-end physical-key test through uinput, with per-step captures |
+| `key-features-test.sh` | Verifies plain F/X/Z/C arrow keys (no Fn needed) and held-key auto-repeat scrolling |
 | `measure.sh` | Startup latency, CPU%, VmRSS/VmHWM, threads, fds (`measure.sh <binary> [secs] [page]`) |
 | `launcher-integration.sh` | APPLaunch entry/carousel/child-launch check (`[right-presses]`, default 25) |
 | `uinput-keys.c` | uinput virtual-keyboard injector used by the two scripts above |

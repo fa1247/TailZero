@@ -59,12 +59,20 @@ JSON, and the daemon restarting while the app is open.
 
 | Key | Action |
 | --- | --- |
-| `Up` / `Down` | Move the selection (lists scroll to keep it visible) |
-| `Left` / `Right` | Secondary action / value navigation where offered |
-| `Enter` | Activate the selected menu item or button |
+| `F` / `X` (or `Up` / `Down`) | Move the selection (lists scroll to keep it visible) |
+| `Z` / `C` (or `Left` / `Right`) | Secondary action / horizontal movement where offered |
+| `Enter` / `Space` | Activate the selected menu item or button (both keys confirm) |
 | `Esc` | Back: leave the current page, return to Home, or close a dialog |
 | `Esc` (hold ~0.7 s) | Exit TailZero cleanly (works on every page) |
 | `1` … `5` | Jump directly to Home, Devices, Device details, Ping, Network check |
+
+Both `Enter` (the OK key) and the space bar confirm the current selection, so
+either hand position works. The plain letter keys `F` / `X` / `Z` / `C` work as arrow keys without the
+`Fn` modifier: the Cardputer Zero prints its arrow shortcuts on those keys, and
+TailZero never needs text input, so the letters are mapped to directions. Holding
+an arrow key for ~0.4 s starts auto-repeat (one step every 90 ms), which is how
+long pages such as **Network check** keep scrolling; a single tap still moves one
+step.
 
 A short `Esc` never exits the app; on the Home page it shows the hint
 "Hold Esc to quit". This follows the Cardputer Zero launcher contract, which may
@@ -260,7 +268,7 @@ Measured on the reference device (Debian 13 trixie aarch64, g++ 14.2,
 cmake 3.31.6, LVGL 9.5.0 linked statically, Tailscale 1.104.5):
 
 - Build clean with zero warnings in `src/ui` and `src/preview`;
-  `build/tailzero` is 1,189,648 bytes.
+  `build/tailzero` is 1,189,624 bytes.
 - **83/83** unit tests pass (`pwsh tools/dev.ps1 test`).
 - Real tailnet: 12 peers / 6 online, direct ping 8–61 ms, netcheck UDP + IPv4 +
   IPv6 OK, UPnP/NAT-PMP/PCP mapping, preferred DERP `hkg`; `tailscale down`/`up`

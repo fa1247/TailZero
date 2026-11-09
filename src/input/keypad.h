@@ -22,14 +22,17 @@ namespace tailzero::input {
 struct KeyEvent {
     uint32_t key = 0;        ///< LVGL key code (LV_KEY_UP, LV_KEY_ENTER, ASCII...)
     bool pressed = false;    ///< edge: true = press, false = release
-    bool long_press = false; ///< true once, ~700 ms after the initial press
+    bool long_press = false; ///< true once, ~700 ms after the initial press (Esc)
+    bool repeat = false;     ///< auto-repeat of a held navigation key
 };
 
 using KeyHandler = std::function<bool(const KeyEvent& event)>;
 
 class Keypad {
 public:
-    static constexpr int kLongPressMs = 700;
+    static constexpr int kLongPressMs = 700;   ///< hold Esc to exit
+    static constexpr int kRepeatDelayMs = 420; ///< hold an arrow this long to auto-repeat
+    static constexpr int kRepeatIntervalMs = 90; ///< auto-repeat period
 
     Keypad() = default;
     ~Keypad();
@@ -66,6 +69,7 @@ private:
     bool pressed_ = false;
     uint32_t active_key_ = 0;
     uint32_t press_started_ms_ = 0;
+    uint32_t last_repeat_ms_ = 0;
     bool long_press_sent_ = false;
 };
 

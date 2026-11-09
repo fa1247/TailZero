@@ -20,7 +20,7 @@ protected:
     void build_content() override;
     void refresh_content(const AppState& state, UiModel& ui) override;
     const char* hint_text() const override {
-        return "Up/Down Select   Enter Open   Esc Exit (hold)";
+        return "F/X Select   Enter/Space Open   Esc Exit (hold)";
     }
     Page back_page() const override { return Page::Home; }
     void refresh_status(const AppState& state, UiModel& ui) override;

@@ -26,9 +26,9 @@ Fields marked **TODO** are not ready for submission.
 
 | Item | Value |
 | --- | --- |
-| Package file (built on device) | `~/tzdev/TailZero-lead/build/deb/tailzero_0.1.0-1_arm64.deb` — **456,076 B** |
+| Package file (built on device) | `~/tzdev/TailZero-lead/build/deb/tailzero_0.1.0-1_arm64.deb` — **456,444 B** |
 | Package filename contract | `tailzero_0.1.0-1_arm64.deb` (`packagename_version-revision_arm64.deb`) |
-| Installed binary | `/usr/bin/tailzero` — 0755 root:root, **1,189,648 B** |
+| Installed binary | `/usr/bin/tailzero` — 0755 root:root, **1,189,624 B** |
 | Installed package state | `dpkg -s tailzero` → `Status: install ok installed`, `0.1.0-1`, `arm64` |
 | Launcher entry | `/usr/share/APPLaunch/applications/tailzero.desktop` |
 | Icon in package | `/usr/share/APPLaunch/share/images/tailzero.png` (+ `_100`, `_80`) |
@@ -43,7 +43,7 @@ Release evidence collected (2026-11-09):
   Re-run against the final tree with the final sanitized screenshots:
   **passed**.
 - `tools/device/package.sh` produced the final `tailzero_0.1.0-1_arm64.deb`
-  (456,076 B) on the device from the final `build/tailzero` (1,189,648 bytes,
+  (456,444 B) on the device from the final `build/tailzero` (1,189,624 bytes,
   ARM64): `Package tailzero`, `Version 0.1.0-1`, `Architecture arm64`,
   `Section utils`, `Priority optional`,
   `Depends: libc6 (>= 2.36), libstdc++6`, `Recommends: tailscale`,
@@ -51,7 +51,7 @@ Release evidence collected (2026-11-09):
   root-owned files, correct modes, `postinst` warn-only.
 - The package was installed and reinstalled on the device from the final source:
   `dpkg -s tailzero` → `Status: install ok installed`, `Version: 0.1.0-1`,
-  `Architecture: arm64`; `/usr/bin/tailzero` is 0755 root:root, 1,189,648 bytes;
+  `Architecture: arm64`; `/usr/bin/tailzero` is 0755 root:root, 1,189,624 bytes;
   `APPLaunch.service` is active.
 - APPLaunch shows the TailZero entry with its icon and the launcher metadata is
   correct (`Exec=/usr/bin/tailzero`, `Terminal=false`). Verified from launcher
@@ -148,10 +148,10 @@ data**.
 
 | File | Size | Content | SHA-256 |
 | --- | --- | --- | --- |
-| `screenshot/01-home.png` | 5,658 B | Home: `Connected`, `6/8 online`, IPv4 `100.101.102.103` + IPv6, `user@example.com · v1.104.5`, menu (Devices / Network Check / Disconnect / Refresh) | `0943e441bfc06c0e0eb056a25eee88a1cfb5ea2d02c2634d6c17f2db4ba58862` |
-| `screenshot/02-devices.png` | 5,437 B | Devices: `1/8  6 on`, `desktop (exit)` selected (ONLINE, direct), `laptop` (derp hkg), `nas` (no IPv4), `raspberrypi` (direct), `server` (derp nue) | `a2ed46afbaf68d05102c5a5c9870c684b98eaad0c26e5aa34dd13852b4090e60` |
-| `screenshot/03-details.png` | 5,162 B | Device details: `desktop (exit)`, IP `100.64.2.40`, Status Online, OS windows, Link Direct, Last seen `now`, actions Ping / Refresh / Back | `19c8f3560ad775e6d841f3a071dcf0b4292c8eef9ade2eb1826d295b77db1870` |
-| `screenshot/04-ping.png` | 4,884 B | Ping: target `desktop 100.64.2.40`, `8 ms`, route `Direct`, `Success`, `via 10.0.0.9:41641`, `2/10 attempts · direct path` (continuous ping stops on a direct path), actions Retry / Back | `5217581ff263a694c606cecb5e6fb37c759c987cf11d8cd8370ca53ba079c2a8` |
+| `screenshot/01-home.png` | 5,672 B | Home: `Connected`, `6/8 online`, IPv4 `100.101.102.103` + IPv6, `user@example.com · v1.104.5`, menu (Devices / Network Check / Disconnect / Refresh) | `ce930b3ef44117bfe3878d20f082e0994cce807d636d039b6392bc98432e2e19` |
+| `screenshot/02-devices.png` | 5,483 B | Devices: `1/8  6 on`, `desktop (exit)` selected (ONLINE, direct), `laptop` (derp hkg), `nas` (no IPv4), `raspberrypi` (direct), `server` (derp nue) | `e9b5a8857d42b818c87d996cf547e5440dd0311883dc687293cd15065b914789` |
+| `screenshot/03-details.png` | 5,208 B | Device details: `desktop (exit)`, IP `100.64.2.40`, Status Online, OS windows, Link Direct, Last seen `now`, actions Ping / Refresh / Back | `c262d4c76cd64e3bc8b8c1d4e847ff9991b0af817a4e99c324f68881b2adbaf0` |
+| `screenshot/04-ping.png` | 4,928 B | Ping: target `desktop 100.64.2.40`, `8 ms`, route `Direct`, `Success`, `via 10.0.0.9:41641`, `2/10 attempts · direct path` (continuous ping stops on a direct path), actions Retry / Back | `9416868cc8197a69b95641da83ee3045fe53e78753f144e5d5f2c2c2ba522a2d` |
 
 Store-contract requirements: exactly four PNGs at 320×170, no emulator chrome or
 borders, four distinct user-relevant states — all satisfied and verified locally
@@ -230,7 +230,7 @@ Notes:
 - [x] README, docs/OPERATOR.md, docs/DEPLOY.md, docs/TESTING.md written
 - [x] Four sanitized screenshots captured and verified (4 × 320×170, clean
       framebuffer, fictional mock-fixture data)
-- [x] Final package built from the real binary (456,076 B) and installed/reinstalled
+- [x] Final package built from the real binary (456,444 B) and installed/reinstalled
       on the device (`dpkg -s tailzero` → install ok installed, 0.1.0-1 arm64)
 - [x] APPLaunch entry with icon/name verified in the launcher
 - [x] Integration checklist (docs/TESTING.md §5 and §7) completed on the device

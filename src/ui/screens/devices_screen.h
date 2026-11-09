@@ -21,7 +21,7 @@ protected:
     void build_content() override;
     void refresh_content(const AppState& state, UiModel& ui) override;
     const char* hint_text() const override {
-        return "Up/Down Move   Enter Details   Esc Back";
+        return "F/X Move   Enter/Space Details   Esc Back";
     }
     Page back_page() const override { return Page::Home; }
     void refresh_status(const AppState& state, UiModel& ui) override;

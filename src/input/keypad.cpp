@@ -27,6 +27,13 @@ constexpr const char* kPreferredDevices[] = {
     "/dev/input/by-path/platform-3f804000.i2c-event-kbd",
 };
 
+bool is_repeatable_key(uint32_t key) {
+    /* Holding an arrow should keep scrolling long pages instead of requiring
+       repeated taps. Enter/Esc/letters are never auto-repeated. */
+    return key == LV_KEY_UP || key == LV_KEY_DOWN || key == LV_KEY_LEFT ||
+           key == LV_KEY_RIGHT;
+}
+
 bool has_keyboard_keys(int fd) {
     unsigned long key_bits[(KEY_MAX / (sizeof(unsigned long) * 8)) + 1] = {};
     if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_bits)), key_bits) < 0) {
@@ -65,6 +72,22 @@ uint32_t map_linux_key(uint16_t code) {
             return LV_KEY_HOME;
         case KEY_END:
             return LV_KEY_END;
+        /* Redundant confirm key: Enter/OK and Space both activate. */
+        case KEY_SPACE:
+            return LV_KEY_ENTER;
+
+        /* The Cardputer Zero keyboard has no dedicated arrow keys: the official
+           Fn shortcuts are Fn+F / Fn+X (previous / next) and Fn+Z / Fn+C
+           (left / right). TailZero never needs text input, so the plain letters
+           act as arrow keys as well — no Fn modifier required. */
+        case KEY_F:
+            return LV_KEY_UP;
+        case KEY_X:
+            return LV_KEY_DOWN;
+        case KEY_Z:
+            return LV_KEY_LEFT;
+        case KEY_C:
+            return LV_KEY_RIGHT;
         case KEY_PAGEUP:
             return LV_KEY_PREV;
         case KEY_PAGEDOWN:
@@ -80,12 +103,12 @@ uint32_t map_linux_key(uint16_t code) {
     } kAscii[] = {
         {KEY_1, '1'}, {KEY_2, '2'}, {KEY_3, '3'}, {KEY_4, '4'}, {KEY_5, '5'},
         {KEY_6, '6'}, {KEY_7, '7'}, {KEY_8, '8'}, {KEY_9, '9'}, {KEY_0, '0'},
-        {KEY_A, 'a'}, {KEY_B, 'b'}, {KEY_C, 'c'}, {KEY_D, 'd'}, {KEY_E, 'e'},
-        {KEY_F, 'f'}, {KEY_G, 'g'}, {KEY_H, 'h'}, {KEY_I, 'i'}, {KEY_J, 'j'},
+        {KEY_A, 'a'}, {KEY_B, 'b'}, {KEY_D, 'd'}, {KEY_E, 'e'},
+        {KEY_G, 'g'}, {KEY_H, 'h'}, {KEY_I, 'i'}, {KEY_J, 'j'},
         {KEY_K, 'k'}, {KEY_L, 'l'}, {KEY_M, 'm'}, {KEY_N, 'n'}, {KEY_O, 'o'},
         {KEY_P, 'p'}, {KEY_Q, 'q'}, {KEY_R, 'r'}, {KEY_S, 's'}, {KEY_T, 't'},
-        {KEY_U, 'u'}, {KEY_V, 'v'}, {KEY_W, 'w'}, {KEY_X, 'x'}, {KEY_Y, 'y'},
-        {KEY_Z, 'z'}, {KEY_SPACE, ' '}, {KEY_MINUS, '-'}, {KEY_EQUAL, '='},
+        {KEY_U, 'u'}, {KEY_V, 'v'}, {KEY_W, 'w'}, {KEY_Y, 'y'},
+        {KEY_MINUS, '-'}, {KEY_EQUAL, '='},
         {KEY_DOT, '.'}, {KEY_SLASH, '/'}, {KEY_APOSTROPHE, '\''},
     };
     for (const auto& entry : kAscii) {
@@ -228,15 +251,16 @@ void Keypad::handle_raw_event(uint16_t code, int value) {
         pressed_ = true;
         active_key_ = key;
         press_started_ms_ = lv_tick_get();
+        last_repeat_ms_ = press_started_ms_;
         long_press_sent_ = false;
         if (handler_) {
-            handler_(KeyEvent{key, true, false});
+            handler_(KeyEvent{key, true, false, false});
         }
     }
     else {
         if (pressed_ && active_key_ == key) {
             if (handler_) {
-                handler_(KeyEvent{key, false, false});
+                handler_(KeyEvent{key, false, false, false});
             }
             pressed_ = false;
             active_key_ = 0;
@@ -261,12 +285,26 @@ void Keypad::read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
         data->continue_reading = true;
     }
 
-    /* Long press detection: LVGL polls the indev every few ms. */
-    if (self->pressed_ && !self->long_press_sent_ &&
-        lv_tick_elaps(self->press_started_ms_) >= static_cast<uint32_t>(kLongPressMs)) {
-        self->long_press_sent_ = true;
-        if (self->handler_) {
-            self->handler_(KeyEvent{self->active_key_, true, true});
+    /* Held keys: Esc becomes a long press (exit), navigation keys auto-repeat
+       so long lists / pages keep scrolling while the key is held down. LVGL
+       polls the indev every few ms, which drives both timers. */
+    if (self->pressed_) {
+        const uint32_t held_ms = lv_tick_elaps(self->press_started_ms_);
+        if (self->active_key_ == LV_KEY_ESC) {
+            if (!self->long_press_sent_ && held_ms >= static_cast<uint32_t>(kLongPressMs)) {
+                self->long_press_sent_ = true;
+                if (self->handler_) {
+                    self->handler_(KeyEvent{self->active_key_, true, true, false});
+                }
+            }
+        }
+        else if (is_repeatable_key(self->active_key_) &&
+                 held_ms >= static_cast<uint32_t>(kRepeatDelayMs) &&
+                 lv_tick_elaps(self->last_repeat_ms_) >= static_cast<uint32_t>(kRepeatIntervalMs)) {
+            self->last_repeat_ms_ = lv_tick_get();
+            if (self->handler_) {
+                self->handler_(KeyEvent{self->active_key_, true, false, true});
+            }
         }
     }
 

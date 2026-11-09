@@ -19,7 +19,7 @@ protected:
     void build_content() override;
     void refresh_content(const AppState& state, UiModel& ui) override;
     const char* hint_text() const override {
-        return "Up/Down Action   Enter Run   Esc Back";
+        return "F/X Action   Enter/Space Run   Esc Back";
     }
     Page back_page() const override { return Page::Devices; }
     void refresh_status(const AppState& state, UiModel& ui) override;

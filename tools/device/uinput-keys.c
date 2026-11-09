@@ -42,7 +42,8 @@ static const struct {
     const char* name;
     int code;
 } kKeys[] = {
-    {"KEY_ESC", KEY_ESC}, {"KEY_ENTER", KEY_ENTER}, {"KEY_UP", KEY_UP},
+    {"KEY_ESC", KEY_ESC}, {"KEY_ENTER", KEY_ENTER}, {"KEY_KPENTER", KEY_KPENTER},
+    {"KEY_SPACE", KEY_SPACE}, {"KEY_UP", KEY_UP},
     {"KEY_DOWN", KEY_DOWN}, {"KEY_LEFT", KEY_LEFT}, {"KEY_RIGHT", KEY_RIGHT},
     {"KEY_BACKSPACE", KEY_BACKSPACE}, {"KEY_TAB", KEY_TAB}, {"KEY_HOME", KEY_HOME},
     {"KEY_A", KEY_A}, {"KEY_B", KEY_B}, {"KEY_C", KEY_C}, {"KEY_D", KEY_D},
