@@ -261,7 +261,7 @@ README/PUBLISH records refer to.
 - Performance (`tools/device/measure.sh`): startup-to-ready **167 ms**, CPU
   **1.5 %** idle with the 5 s refresh, VmRSS **4.4 MB** (VmHWM 4.4 MB), 2 threads,
   6 open fds, binary 1.19 MB.
-- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 457,580 B;
+- Package/launcher: the final `tailzero_0.1.0-1_arm64.deb` is 457,896 B;
   `dpkg -s tailzero` → `install ok installed`, version `0.1.0-1`, arm64;
   `/usr/bin/tailzero` 0755 root:root 1,189,776 bytes; APPLaunch is active and
   shows the entry with the TailZero name and icon (`Exec=/usr/bin/tailzero`,

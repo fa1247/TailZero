@@ -28,8 +28,21 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BINARY="${TAILZERO_BINARY:-$PROJECT_DIR/build/tailzero}"
 OUT_DIR="${TAILZERO_DEB_OUT:-$PROJECT_DIR/build/deb}"
 REVISION="${TAILZERO_DEB_REVISION:-1}"
-MAINTAINER="${TAILZERO_MAINTAINER:-TailZero contributors <tailzero@users.noreply.github.com>}"
-HOMEPAGE="${TAILZERO_HOMEPAGE:-https://github.com/tailzero/tailzero}"
+
+# Package metadata follows the store manifest (app-builder.json) so the repo URL
+# and maintainer account never drift from the published identity. Both can still
+# be overridden with TAILZERO_MAINTAINER / TAILZERO_HOMEPAGE.
+AB_JSON="$PROJECT_DIR/app-builder.json"
+AB_SOURCE_REPO=""
+AB_AUTHOR_GITHUB=""
+AB_AUTHOR_NAME=""
+if [ -f "$AB_JSON" ]; then
+    AB_SOURCE_REPO="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["store"].get("source_repo",""))' "$AB_JSON" 2>/dev/null || true)"
+    AB_AUTHOR_GITHUB="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["store"].get("author",{}).get("github",""))' "$AB_JSON" 2>/dev/null || true)"
+    AB_AUTHOR_NAME="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["store"].get("author",{}).get("display_name",""))' "$AB_JSON" 2>/dev/null || true)"
+fi
+MAINTAINER="${TAILZERO_MAINTAINER:-${AB_AUTHOR_NAME:-TailZero contributors} <${AB_AUTHOR_GITHUB:-fa1247}@users.noreply.github.com>}"
+HOMEPAGE="${TAILZERO_HOMEPAGE:-${AB_SOURCE_REPO:-https://github.com/fa1247/TailZero}}"
 DESKTOP="$PROJECT_DIR/assets/applaunch/tailzero.desktop"
 ASSETS="$PROJECT_DIR/assets/share"
 ICON_DIR="$ASSETS/images"

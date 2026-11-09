@@ -26,7 +26,7 @@ Fields marked **TODO** are not ready for submission.
 
 | Item | Value |
 | --- | --- |
-| Package file (built on device) | `~/tzdev/TailZero-lead/build/deb/tailzero_0.1.0-1_arm64.deb` — **457,580 B** |
+| Package file (built on device) | `~/tzdev/TailZero-lead/build/deb/tailzero_0.1.0-1_arm64.deb` — **457,896 B** |
 | Package filename contract | `tailzero_0.1.0-1_arm64.deb` (`packagename_version-revision_arm64.deb`) |
 | Installed binary | `/usr/bin/tailzero` — 0755 root:root, **1,189,776 B** |
 | Installed package state | `dpkg -s tailzero` → `Status: install ok installed`, `0.1.0-1`, `arm64` |
@@ -43,7 +43,7 @@ Release evidence collected (2026-11-09):
   Re-run against the final tree with the final sanitized screenshots:
   **passed**.
 - `tools/device/package.sh` produced the final `tailzero_0.1.0-1_arm64.deb`
-  (457,580 B) on the device from the final `build/tailzero` (1,189,776 bytes,
+  (457,896 B) on the device from the final `build/tailzero` (1,189,776 bytes,
   ARM64): `Package tailzero`, `Version 0.1.0-1`, `Architecture arm64`,
   `Section utils`, `Priority optional`,
   `Depends: libc6 (>= 2.36), libstdc++6`, `Recommends: tailscale`,
@@ -230,7 +230,7 @@ Notes:
 - [x] README, docs/OPERATOR.md, docs/DEPLOY.md, docs/TESTING.md written
 - [x] Four sanitized screenshots captured and verified (4 × 320×170, clean
       framebuffer, fictional mock-fixture data)
-- [x] Final package built from the real binary (457,580 B) and installed/reinstalled
+- [x] Final package built from the real binary (457,896 B) and installed/reinstalled
       on the device (`dpkg -s tailzero` → install ok installed, 0.1.0-1 arm64)
 - [x] APPLaunch entry with icon/name verified in the launcher
 - [x] Integration checklist (docs/TESTING.md §5 and §7) completed on the device
