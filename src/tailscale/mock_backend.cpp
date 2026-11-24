@@ -6,16 +6,41 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <string>
 
+#include <arpa/inet.h>
 #include <dirent.h>
 #include <sys/stat.h>
+
+#include "tailscale/models.h"
 
 namespace tailzero {
 
 namespace {
+
+struct ExitNodeSelection {
+    bool changed = false;
+    std::string id;
+    std::string ip;
+};
+
+ExitNodeSelection& exit_node_storage() {
+    static ExitNodeSelection selection;
+    return selection;
+}
+
+bool same_ip(const std::string& left, const std::string& right) {
+    for (int family : {AF_INET, AF_INET6}) {
+        unsigned char a[16] = {}, b[16] = {};
+        if (::inet_pton(family, left.c_str(), a) == 1 &&
+            ::inet_pton(family, right.c_str(), b) == 1 &&
+            std::memcmp(a, b, family == AF_INET ? 4 : 16) == 0) return true;
+    }
+    return false;
+}
 
 std::string& root_storage() {
     static std::string root = []() {
@@ -92,13 +117,42 @@ bool mock_read_command(const std::string& base_name, MockCommand& command) {
     return command.found;
 }
 
+bool mock_select_exit_node(const std::string& ip, const StatusSnapshot& snapshot) {
+    if (ip.empty()) {
+        exit_node_storage() = {true, {}, {}};
+        return true;
+    }
+    if (!snapshot.parsed) return false;
+    for (const PeerInfo& peer : snapshot.peers) {
+        if (peer.exit_node_option && (same_ip(ip, peer.ip4) || same_ip(ip, peer.ip6))) {
+            exit_node_storage() = {true, peer.id, peer.ip4.empty() ? peer.ip6 : peer.ip4};
+            return true;
+        }
+    }
+    return false;
+}
+
+void mock_apply_exit_node(StatusSnapshot& snapshot) {
+    const ExitNodeSelection& selection = exit_node_storage();
+    if (!selection.changed || !snapshot.parsed) return;
+    snapshot.exit_node_id = selection.id;
+    snapshot.exit_node_ip = selection.ip;
+    snapshot.exit_node_online = false;
+    for (PeerInfo& peer : snapshot.peers) {
+        peer.exit_node = !selection.id.empty() && peer.id == selection.id;
+        if (peer.exit_node) snapshot.exit_node_online = peer.online;
+    }
+}
+
 void set_mock_root_for_testing(const std::string& root) {
     root_storage() = root;
+    exit_node_storage() = {};
 }
 
 void reload_mock_root_for_testing() {
     const char* value = std::getenv("TAILZERO_MOCK_DIR");
     root_storage() = value != nullptr ? std::string(value) : std::string();
+    exit_node_storage() = {};
 }
 
 std::vector<std::string> mock_list_scenarios(const std::string& fixtures_root) {

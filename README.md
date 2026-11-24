@@ -2,8 +2,8 @@
 
 TailZero is a native Tailscale manager for the **Cardputer Zero**: a 320×170 LVGL
 application that shows the state of the local `tailscaled` daemon, lists the
-devices in your tailnet, pings peers, runs `tailscale netcheck`, and brings the
-connection up or down — all from the built-in keyboard.
+devices in your tailnet, pings peers, runs `tailscale netcheck`, brings the
+connection up or down, and selects an exit node — all from the built-in keyboard.
 
 TailZero does **not** implement a VPN protocol and does **not** install or modify
 Tailscale. It talks to the `tailscale` command line tool of an existing
@@ -12,8 +12,9 @@ never stops the `tailscaled` service.
 
 - Platform: Cardputer Zero (Raspberry Pi CM0), Debian 13 *trixie* arm64, APPLaunch launcher
 - Display: 320×170 ST7789V framebuffer (Linux fbdev), physical keyboard via evdev
-- Package: `tailzero_0.1.0-1_arm64.deb` (Debian package name `tailzero`)
+- Package: `tailzero_0.2.0-1_arm64.deb` (Debian package name `tailzero`)
 - License: MIT
+- Source: [fa1247/TailZero](https://github.com/fa1247/TailZero)
 
 ## Screenshots
 
@@ -31,7 +32,7 @@ The UI is a small stack of pages, driven entirely by the keyboard:
   `Starting` / `tailscaled down`), Tailscale IPv4 with the IPv6 address on the
   same line, the tailnet name and Tailscale version (`name · vX.Y.Z`), the
   online/total peer count, and a menu with *Devices*, *Network check*,
-  *Connect/Disconnect* and *Refresh*.
+  *Exit Nodes*, *Connect/Disconnect* and *Refresh* (the menu scrolls).
 - **Devices** — scrollable tailnet peer list showing the Tailscale **machine
   name** (the device name set in the admin console, e.g. `vmware`), Tailscale
   IPv4, online/offline state and the current path (`DIRECT`, `DERP` relay or
@@ -46,6 +47,16 @@ The UI is a small stack of pages, driven entirely by the keyboard:
   a direct path is established. The page shows the attempt counter, the latest
   latency and the route (direct address, DERP region or peer relay), supports
   cancel, and distinguishes success, timeout, offline peer and command errors.
+- **Exit Nodes** — choose an online peer that advertises exit-node capability,
+  see the current selection and offline state, or choose **None** to stop using
+  an exit node (even if the selected peer is no longer listed). Open it from Home
+  or press `6`; use `F` / `X` and `Enter` / `Space` to select. Changes run in the
+  background via `tailscale set --exit-node=<ip>` (empty IP disables), preserving
+  other Tailscale preferences, including the existing LAN-access setting. The
+  selected marker comes from refreshed daemon status, not an optimistic UI update.
+  Selecting an exit node routes this device's internet traffic through that node;
+  only use a node you trust. Nodes must already be configured and approved as exit
+  nodes in Tailscale; TailZero does not advertise this device as an exit node.
 - **Network check** — runs `tailscale netcheck` (JSON when available, text
   fallback) and summarizes UDP availability, IPv4/IPv6 connectivity, NAT port
   mapping, hair-pinning and the preferred DERP region with its latency.
@@ -67,7 +78,7 @@ JSON, and the daemon restarting while the app is open.
 | `Enter` / `Space` | Activate the selected menu item or button (both keys confirm) |
 | `Esc` | Back: leave the current page, return to Home, or close a dialog |
 | `Esc` (hold ~0.7 s) | Exit TailZero cleanly (works on every page) |
-| `1` … `5` | Jump directly to Home, Devices, Device details, Ping, Network check |
+| `1` … `6` | Jump directly to Home, Devices, Device details, Ping, Network check, Exit Nodes |
 
 Both `Enter` (the OK key) and the space bar confirm the current selection, so
 either hand position works. The plain letter keys `F` / `X` / `Z` / `C` work as arrow keys without the
@@ -88,7 +99,7 @@ APPLaunch. Installing requires root once (normal for a `.deb`); the application
 itself runs as your desktop user.
 
 ```bash
-sudo dpkg -i tailzero_0.1.0-1_arm64.deb
+sudo dpkg -i tailzero_0.2.0-1_arm64.deb
 systemctl --user restart APPLaunch.service      # pick up the new launcher entry
 ```
 
@@ -106,18 +117,20 @@ Uninstall with `sudo dpkg -r tailzero` (user settings in
 `~/.config/TailZero/` are left in place).
 
 Read-only operations (`status`, `ip`, `ping`, `netcheck`) work immediately. For
-**Connect / Disconnect** the device owner must run a one-time Tailscale operator
+**Connect / Disconnect / Exit Nodes** the device owner must run a one-time Tailscale operator
 step; until then TailZero shows a hint instead of failing. See
 [docs/OPERATOR.md](docs/OPERATOR.md), [docs/DEPLOY.md](docs/DEPLOY.md) and
 [docs/TESTING.md](docs/TESTING.md).
 
 ## Build
 
-TailZero is built **natively on the Cardputer Zero** against a prebuilt LVGL 9.5
-static library. The official Cardputer Zero cross-build path is documented at the
-end of this section for Debian hosts and CI.
+TailZero can be built **natively on the Cardputer Zero** against a prebuilt LVGL
+9.5 static library, or cross-compiled on a Linux host with the included aarch64
+CMake toolchain. The 0.2.0 release handoff uses Ubuntu 22.04, aarch64 GCC 11 and
+its existing sysroot, a baseline compatible with Debian 13; build and test
+results are tracked in [PUBLISH.md](<PUBLISH.md>), not implied by these instructions.
 
-### On-device native build (the path used here)
+### On-device native build (used for the historical 0.1.0 release)
 
 Prerequisites on the device: `cmake` ≥ 3.25, `ninja-build`, `g++`, `python3`,
 and an LVGL 9.5 source tree (the helper scripts default to
@@ -153,12 +166,12 @@ Build options (`CMakeLists.txt`):
 | `APP_NAME` | `tailzero` | Executable name |
 | `APP_FRAMEBUFFER_DEVICE` | `/dev/fb0` | Fallback framebuffer (auto-detects the panel from `/proc/fb`) |
 | `APP_KEY_INPUT_DEVICE` | empty | evdev keypad path; empty = auto-detect the tca8418 keyboard |
-| `TAILZERO_BUILD_TESTS` | `OFF` | Also configure the host test suite |
+| `TAILZERO_BUILD_TESTS` | `OFF` | Build/register backend/service tests and the UI smoke test; cross-built tests need QEMU or the target device |
 
 ### Building the .deb
 
 ```bash
-bash tools/device/package.sh        # -> build/deb/tailzero_0.1.0-1_arm64.deb
+bash tools/device/package.sh        # -> build/deb/tailzero_0.2.0-1_arm64.deb
 bash tools/device/install-deb.sh    # dpkg -i + APPLaunch restart (device tooling)
 ```
 
@@ -167,19 +180,44 @@ bash tools/device/install-deb.sh    # dpkg -i + APPLaunch restart (device toolin
 package anything else. `install-deb.sh` is developer tooling only; the shipped
 application never runs `dpkg` or `sudo`.
 
-### Official cp0-cross path (Debian host / CI)
+### Linux host / CI cross-build (arm64)
 
-The official Cardputer Zero Template builds the aarch64 package from a Debian
-host with the `crossbuild-essential-arm64` toolchain and the CMake presets
-`cp0-cross` / `cp0-cross-rel` / `cp0-cross-deb` (or the one-shot workflow
-`cmake --workflow --preset cp0-cross-package`), producing
-`dist/<AppName>_<version>_<revision>_arm64.deb` via CPack. This repository
-currently builds natively on the device and packages with
-`tools/device/package.sh`, so the Template's `CMakePresets.json`, cross toolchain
-file and `cmake/cm0-package.cmake` are **not** part of this tree. To use the
-cp0-cross path, start from the CardputerZero Template and add this project's
-sources and store metadata (`app-builder.json`); the AppBuilder CI uses the same
-approach.
+Use the included
+[aarch64-linux-gnu.cmake](<cmake/toolchains/aarch64-linux-gnu.cmake>) toolchain
+with `gcc-aarch64-linux-gnu`, `g++-aarch64-linux-gnu`, CMake ≥ 3.25, Ninja and
+Python 3. The compiler/sysroot glibc baseline must be no newer than the target
+Cardputer Zero. The release build uses the existing Ubuntu 22.04 aarch64 GCC 11
+sysroot at `/usr/aarch64-linux-gnu`, compatible with the Debian 13 target.
+LVGL 9.5.0 is fetched unless a local source tree or ARM64 prebuilt prefix is
+provided with the options above.
+
+From the repository root:
+
+```bash
+cmake -S . -B build/release-arm64 -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/aarch64-linux-gnu.cmake \
+  -DTAILZERO_BUILD_TESTS=ON
+cmake --build build/release-arm64 -j2
+
+# Cross-built executables cannot run directly on an x86_64 host.
+# Install qemu-user and run the unit/service and UI tests manually:
+qemu-aarch64 -L /usr/aarch64-linux-gnu build/release-arm64/tests/tailzero-tests
+TAILZERO_DEMO_SMOKE=1 qemu-aarch64 -L /usr/aarch64-linux-gnu \
+  build/release-arm64/tailzero-ui-preview
+
+# Package the cross-built application (requires dpkg-deb and readelf):
+bash tools/device/package.sh --binary "$PWD/build/release-arm64/tailzero" \
+  --out-dir "$PWD/dist"
+# -> dist/tailzero_0.2.0-1_arm64.deb
+```
+
+The toolchain does not configure a CTest emulator, so use the explicit QEMU
+commands above for cross-built tests rather than running `ctest` directly.
+These tests exercise backend/service behavior and the mock UI; they do **not**
+verify real exit-node routing, the physical keyboard, the panel or APPLaunch on
+hardware. The CardputerZero Template's `cp0-cross` presets and CPack workflow are
+separate and are not provided by this repository.
 
 ## Configuration and mock mode
 
@@ -194,7 +232,7 @@ refresh_interval_sec=5     # background status refresh, clamped to 1..300
 auto_refresh=true          # false = only manual Refresh
 ping_timeout_ms=12000      # tailscale ping budget
 netcheck_timeout_ms=25000  # tailscale netcheck budget
-initial_page=              # dev/screenshot helper: home|devices|details|ping|netcheck
+initial_page=              # dev/screenshot helper: home|devices|details|ping|netcheck|exit-nodes
 ```
 
 Environment variables (development and screenshots, all optional):
@@ -202,7 +240,7 @@ Environment variables (development and screenshots, all optional):
 | Variable | Description |
 | --- | --- |
 | `TAILZERO_MOCK_DIR` | Replay canned fixture files instead of running the `tailscale` CLI; ready-made scenarios live in `tests/fixtures/` (see its README for the file convention) |
-| `TAILZERO_DEMO` | Force the start page: `home`, `devices`, `details`, `ping`, `netcheck` |
+| `TAILZERO_DEMO` | Force the start page: `home`, `devices`, `details`, `ping`, `netcheck`, `exit-nodes` |
 | `TAILZERO_DEMO_STATE` | Preview-harness scenario: `connected`, `disconnected`, `derp`, `offline`, `login`, `empty`, `error`, `noinstall` |
 | `TAILZERO_FBDEV` | Framebuffer device override; the app also honors `APPLAUNCH_LINUX_FBDEV_DEVICE` (launcher-provided) and `LV_LINUX_FBDEV_DEVICE`, and otherwise auto-detects the ST7789V panel from `/proc/fb` |
 | `TAILZERO_KEYDEV` | evdev keypad override (default: auto-detect the tca8418 keyboard) |
@@ -213,7 +251,7 @@ Environment variables (development and screenshots, all optional):
 src/
 ├── main.cpp              entry point: LVGL + panel + keyboard + render loop
 ├── app/
-│   ├── app_service.*     one worker thread: status refresh, up/down, ping, netcheck
+│   ├── app_service.*     one worker: status, up/down, exit node, ping, netcheck
 │   ├── app_state.*       immutable AppState snapshot shared with the UI
 │   ├── app_config.*      ~/.config/TailZero/config.ini
 │   ├── backend_factory.* real CLI backend selection
@@ -233,7 +271,7 @@ src/
 │   ├── screen.h          Screen contract (build/refresh/handle_key)
 │   ├── format.*          compact value/error formatting helpers
 │   ├── widgets/          title bar, status chip, hint bar, list row, button bar, toast, spinner
-│   └── screens/          Home, Devices, Details, Ping, Netcheck (+ shared BasePage)
+│   └── screens/          Home, Devices, Details, Ping, Netcheck, Exit Nodes (+ BasePage)
 └── preview/              tailzero-ui-preview: real screens, synthetic data, no backend
 ```
 
@@ -265,7 +303,11 @@ The UI can be exercised without Tailscale through the mock backend
 real-device checklist and store screenshot capture) is described in
 [docs/TESTING.md](docs/TESTING.md).
 
-### Verified on the Cardputer Zero (0.1.0)
+### Historical: verified on the Cardputer Zero (0.1.0 only)
+
+The following measurements are from the 0.1.0 release on 2026-11-09. They are
+retained as historical evidence, **not** as verification of 0.2.0 or its exit-node
+feature. Current release verification status is in [PUBLISH.md](<PUBLISH.md>).
 
 Measured on the reference device (Debian 13 trixie aarch64, g++ 14.2,
 cmake 3.31.6, LVGL 9.5.0 linked statically, Tailscale 1.104.5):
@@ -286,7 +328,7 @@ cmake 3.31.6, LVGL 9.5.0 linked statically, Tailscale 1.104.5):
 
 - Tailscale must already be installed and running; TailZero never installs,
   upgrades or uninstalls it and never stops `tailscaled`.
-- Connect/Disconnect need the one-time `tailscale set --operator` deployment
+- Connect/Disconnect and exit-node changes need the one-time `tailscale set --operator` deployment
   step. Without it the app explains the missing permission instead of escalating
   privileges.
 - Login authorization is shown as a URL on screen; TailZero does not launch a
@@ -296,8 +338,6 @@ cmake 3.31.6, LVGL 9.5.0 linked statically, Tailscale 1.104.5):
   versions, or a DERP region when a direct path exists) is omitted rather than
   guessed.
 - Only the arm64 Debian package for the Cardputer Zero is built and supported.
-- The `store.author.github` and `store.source_repo` values in `app-builder.json`
-  are placeholders until the public source repository exists.
 
 ## License
 

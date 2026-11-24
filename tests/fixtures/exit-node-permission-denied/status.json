@@ -1,0 +1,14 @@
+{
+  "BackendState": "Running",
+  "TailscaleIPs": ["100.101.102.103"],
+  "ExitNodeStatus": {
+    "ID": "nSelectedMissing", "Online": false,
+    "TailscaleIPs": ["100.64.1.50"]
+  },
+  "Peer": {
+    "nodekey:exit4": {
+      "ID": "nExit4", "HostName": "exit-v4", "Online": true,
+      "TailscaleIPs": ["100.64.1.10"], "ExitNodeOption": true
+    }
+  }
+}

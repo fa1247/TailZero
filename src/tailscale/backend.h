@@ -28,6 +28,8 @@ public:
     virtual StatusSnapshot get_status(int timeout_ms) = 0;
     virtual CommandOutcome up(int timeout_ms) = 0;
     virtual CommandOutcome down(int timeout_ms) = 0;
+    /** Select a literal IPv4/IPv6 exit node; empty disables, preserving other prefs. */
+    virtual CommandOutcome set_exit_node(const std::string& ip, int timeout_ms) = 0;
     virtual PingResult ping(const std::string& ip,
                             int timeout_ms,
                             const std::function<void(const std::string&)>& on_progress,

@@ -4,7 +4,75 @@ Persistent publish record for the Cardputer Zero Application Store. Keep this
 file updated as the package, listings, screenshots and submission state change.
 Fields marked **TODO** are not ready for submission.
 
-## 1. Identity
+## Current release handoff — 0.2.0 (prepared 2026-11-24)
+
+**Status: ARM64 package built and local/QEMU verification passed. Manual package
+upload by the user is pending.** No GitHub release/tag or store upload is
+performed as part of this handoff. The user handles any issue response or closure;
+no issue comment or closure was performed.
+
+| Field | Value |
+| --- | --- |
+| App / package | `TailZero` / `tailzero` |
+| Version / Debian revision | `0.2.0` / `1` |
+| Target | Cardputer Zero, Debian 13 trixie `arm64` |
+| Package output | `dist/tailzero_0.2.0-1_arm64.deb` — **676,566 B** |
+| SHA-256 | `053159a98b3578d104e00f2ce2c9271b297c8e1b93438aaafc78d07bd0f3938d` |
+| Installed binary | `/usr/bin/tailzero` — **1,528,880 B**, ARM64 PIE, mode 0755 |
+| Build route | Cross-compilation on Ubuntu 22.04 with aarch64 GCC 11 and the existing `/usr/aarch64-linux-gnu` sysroot; Debian 13-compatible baseline |
+| Source repository | [fa1247/TailZero](https://github.com/fa1247/TailZero) |
+| Store metadata | [app-builder.json](<app-builder.json>), version `0.2.0`; `updated_at` dated 2026-11-24 (Asia/Shanghai); original `published_at` retained |
+| Upload / submission | **Pending — user will upload the package manually** |
+
+### Release changes and listing
+
+- **Exit Nodes**: open from Home or with `6`, choose an online exit node, view
+  the current selection/offline state, or select **None** to stop using an exit
+  node. Selection is confirmed from daemon status after the command completes.
+- Changes use `tailscale set --exit-node` and retain other preferences, including
+  LAN access. Connect/Disconnect and exit-node changes require the one-time
+  operator grant (`sudo tailscale set --operator=<user>`); no privilege escalation
+  or root password prompt is added. Only use an exit node you trust.
+- Busy-command handling and the command-cancellation race are addressed; LVGL
+  alias handling and the CMake test configuration are fixed.
+- Current English, Simplified Chinese and Japanese listing copy is maintained in
+  [app-builder.json](<app-builder.json>); the 0.1.0 copy below is historical.
+- Existing screenshots are retained from 0.1.0; they are not evidence of 0.2.0
+  exit-node behavior or fresh hardware testing.
+
+### Verification results — 2026-11-24
+
+- [x] Release build with aarch64 GCC 11.4 and LVGL 9.5.0 using the new cross
+  toolchain and `-DTAILZERO_BUILD_TESTS=ON`; application and preview both link.
+- [x] ARM64 unit/service tests: **100/100 passed** under
+  `qemu-aarch64 -L /usr/aarch64-linux-gnu`; headless exit-node UI: **21/21 passed**.
+  Real-daemon smoke is opt-in and was not enabled. Native x86_64 CTest also passed
+  both targets during feature verification.
+- [x] Store manifest passes the Template validator; separate Debian checks verify
+  `tailzero`, version `0.2.0-1`, `arm64`, root ownership, 0755 directories/binary,
+  0644 data files, APPLaunch entry/icons, and all packaged MD5 checksums. Packaged
+  executable is byte-identical to the cross-built ARM64 application.
+- [x] Package dependency inspection: highest required symbols are `GLIBC_2.34`
+  and `GLIBCXX_3.4.29`, below Debian 13's baseline; LVGL is linked statically.
+  `Depends: libc6 (>= 2.36), libstdc++6`; `Recommends: tailscale`.
+- [x] Install helper `--dry-run --force --no-build` validates the final package;
+  no package was installed and no service/routing settings were changed.
+- [x] Final artifact size and SHA-256 recorded above; `dist/SHA256SUMS` accompanies
+  the package. One pre-existing input-path truncation compiler warning remains.
+- [ ] Real Cardputer Zero installation, operator permissions, exit-node routing
+  and physical keyboard acceptance are **not yet verified for 0.2.0**. QEMU/mock
+  tests do not substitute for those checks.
+- [ ] User manually uploads the final package and records the submission result.
+
+## Historical release record — 0.1.0 (2026-11-09)
+
+Everything below records the earlier 0.1.0 handoff, including its measurements,
+listing, screenshots and then-open TODOs. It is retained for provenance, not as
+0.2.0 verification or the current submission checklist. The source repository
+is now [fa1247/TailZero](https://github.com/fa1247/TailZero); historical references
+to completing the repository identity are superseded by the handoff above.
+
+### 1. Identity
 
 | Field | Value |
 | --- | --- |
@@ -22,7 +90,7 @@ Fields marked **TODO** are not ready for submission.
 | Source repository | `https://github.com/fa1247/TailZero` (public) |
 | Author | `TailZero contributors` — GitHub `fa1247` |
 
-## 2. Package artifact
+### 2. Package artifact
 
 | Item | Value |
 | --- | --- |
@@ -80,7 +148,7 @@ final acceptance step is a manual tap on **TailZero** in APPLaunch (automated
 selection inside the launcher carousel drops synthetic keys while it boots; the
 entry and icon were verified visually instead).
 
-## 3. Listing copy
+### 3. Listing copy
 
 Store `store.summary` (English, ≤ 80 chars):
 
@@ -122,7 +190,7 @@ Store `store.summary` (English, ≤ 80 chars):
 
 Full zh-CN and ja descriptions are in `app-builder.json` (`store.locales`).
 
-## 4. Icon
+### 4. Icon
 
 - `assets/share/images/tailzero.png` — 256×256 RGBA PNG, square, no baked rounded
   corners or border.
@@ -133,7 +201,7 @@ Full zh-CN and ja descriptions are in `app-builder.json` (`store.locales`).
 - Reproducible with `assets/generate_icon.py` (Pillow). This is the store icon and
   is copied into the package.
 
-## 5. Screenshots
+### 5. Screenshots
 
 `store.screenshots` — exactly four finalized 320×170 RGB PNGs, clean framebuffer.
 
@@ -173,7 +241,7 @@ In the packages repository, `meta.json` image paths are relative to
 `"screenshots": ["screenshots/01-home.png", …]` after the files are copied there.
 The source-tree paths above are what `app-builder.json` uses for `czdev publish`.
 
-## 6. Privacy and permissions
+### 6. Privacy and permissions
 
 - **network = true**: TailZero execs the local `tailscale` CLI (read-only status,
   ip, ping, netcheck and up/down). Ping/netcheck generate Tailscale network
@@ -192,7 +260,7 @@ The source-tree paths above are what `app-builder.json` uses for `czdev publish`
   addresses and tailnet login); no personal tailnet data is published.
   `TAILZERO_MOCK_DIR` and the dev helpers are developer-only and never shipped.
 
-## 7. Submission
+### 7. Submission
 
 Two supported interfaces (not the same flow):
 
@@ -217,7 +285,7 @@ Notes:
   release time, keep stable) and `updated_at = 2026-11-09T12:20:00+08:00` (final
   screenshots/docs); update `updated_at` at submission time if anything changes.
 
-### Pre-submission checklist
+#### Pre-submission checklist
 
 - [x] `app-builder.json` complete; official validator passes (re-run against the final tree)
 - [x] Icon 256×256 PNG (square, no rounded corners), store + APPLaunch sizes
@@ -239,7 +307,7 @@ Notes:
 - [ ] First-release demo video recorded for the PR
 - [ ] Upload performed via the web portal or `czdev publish`, PR opened
 
-## 8. Submission result
+### 8. Submission result
 
 | Field | Value |
 | --- | --- |

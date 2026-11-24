@@ -9,7 +9,7 @@
 #
 cmake_minimum_required(VERSION 3.25)
 
-project(tailzero VERSION 0.1.0 LANGUAGES C CXX)
+project(tailzero VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,7 +54,9 @@ else()
             GIT_SHALLOW TRUE)
         FetchContent_MakeAvailable(lvgl)
     endif()
-    add_library(lvgl::lvgl ALIAS lvgl)
+    if(NOT TARGET lvgl::lvgl)
+        add_library(lvgl::lvgl ALIAS lvgl)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------

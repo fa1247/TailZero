@@ -4,7 +4,7 @@
  *
  * Shows the connection state, this node's Tailscale IPv4 (+IPv6 on the right of
  * the same line), the tailnet name + tailscale version, the peer/online counts,
- * an activity/error line and the four primary commands.
+ * an activity/error line and five commands in a four-row scrolling menu.
  */
 #include "ui/screens/home_screen.h"
 
@@ -14,7 +14,7 @@
 namespace tailzero::ui {
 namespace {
 
-constexpr int kMenuCount = 4;
+constexpr int kMenuCount = 5;
 constexpr int kMenuTop = 62;
 constexpr int kMenuRowHeight = 17;
 constexpr int kMenuStep = 17;
@@ -49,16 +49,10 @@ void HomeScreen::build_content() {
     spinner_.set_visible(false);
     activity_ = widgets::make_label(content(), 6, 49, 308, font::small(), color::kTextDim);
 
-    for (int i = 0; i < kMenuCount; ++i) {
+    for (int i = 0; i < kVisibleRows; ++i) {
         menu_[i].create(content(), kMenuTop + i * kMenuStep, kMenuRowHeight);
         menu_[i].set_right_color(color::kTextDim);
     }
-    menu_[0].set_primary("Devices");
-    menu_[1].set_primary("Network Check");
-    menu_[2].set_primary("Connect");
-    menu_[3].set_primary("Refresh");
-    menu_[0].set_right(LV_SYMBOL_RIGHT);
-    menu_[1].set_right(LV_SYMBOL_RIGHT);
 }
 
 void HomeScreen::refresh_content(const AppState& state, UiModel& ui) {
@@ -178,10 +172,8 @@ void HomeScreen::refresh_content(const AppState& state, UiModel& ui) {
     widgets::set_text_color(activity_, activity_color);
     widgets::set_visible(activity_, !activity.empty());
 
-    /* Menu labels: the connect row flips with the backend state. */
-    menu_[2].set_primary(connected_ ? "Disconnect" : "Connect");
-    menu_[0].set_right(status.parsed ? std::to_string(status.peer_count) : std::string());
-    menu_[2].set_right(state.conn_state == OpState::Pending ? "busy" : std::string());
+    peer_count_ = status.parsed ? status.peer_count : 0;
+    busy_ = state.busy();
 
     apply_selection(ui);
 }
@@ -198,8 +190,26 @@ void HomeScreen::refresh_status(const AppState& state, UiModel& ui) {
 }
 
 void HomeScreen::apply_selection(UiModel& ui) {
-    for (int i = 0; i < kMenuCount; ++i) {
-        menu_[i].set_selected(i == ui.home_index);
+    clamp_index(ui);
+    if (ui.home_index < menu_scroll_) menu_scroll_ = ui.home_index;
+    if (ui.home_index >= menu_scroll_ + kVisibleRows)
+        menu_scroll_ = ui.home_index - kVisibleRows + 1;
+    const char* labels[] = {"Devices", "Network Check", "Exit Nodes",
+                            connected_ ? "Disconnect" : "Connect", "Refresh"};
+    for (int slot = 0; slot < kVisibleRows; ++slot) {
+        const int index = menu_scroll_ + slot;
+        menu_[slot].set_primary(labels[index]);
+        std::string right;
+        if (index == 0) right = std::to_string(peer_count_);
+        if (index == 1) right = LV_SYMBOL_RIGHT;
+        if (index == 2) right = "6 " LV_SYMBOL_RIGHT;
+        if (index == 3 && busy_) right = "busy";
+        // Keep the original four-row geometry; indicate additional items.
+        if (slot == 0 && menu_scroll_ > 0) right += " " LV_SYMBOL_UP;
+        if (slot == kVisibleRows - 1 && menu_scroll_ + kVisibleRows < kMenuCount)
+            right += " " LV_SYMBOL_DOWN;
+        menu_[slot].set_right(right);
+        menu_[slot].set_selected(index == ui.home_index);
     }
 }
 
@@ -222,7 +232,10 @@ bool HomeScreen::handle_screen_key(uint32_t key, UiModel& ui) {
 }
 
 void HomeScreen::activate(UiModel& ui) {
-    (void)ui;
+    if (busy_ && (ui.home_index == 1 || ui.home_index >= 3)) {
+        request_toast("Operation in progress; please wait");
+        return;
+    }
     switch (ui.home_index) {
         case 0:
             if (actions_.navigate) {
@@ -238,6 +251,10 @@ void HomeScreen::activate(UiModel& ui) {
             }
             break;
         case 2:
+            if (actions_.navigate) actions_.navigate(Page::ExitNodes);
+            break;
+        case 3:
+            busy_ = true;
             if (connected_) {
                 if (actions_.disconnect) {
                     actions_.disconnect();
@@ -247,7 +264,8 @@ void HomeScreen::activate(UiModel& ui) {
                 actions_.connect();
             }
             break;
-        case 3:
+        case 4:
+            busy_ = true;
             if (actions_.refresh) {
                 actions_.refresh();
             }

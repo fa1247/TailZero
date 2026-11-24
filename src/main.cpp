@@ -76,6 +76,9 @@ int main(int /*argc*/, char** /*argv*/) {
     actions.connect = [&service]() { service.request_connect(); };
     actions.disconnect = [&service]() { service.request_disconnect(); };
     actions.netcheck = [&service]() { service.request_netcheck(); };
+    actions.set_exit_node = [&service](const std::string& ip) {
+        service.request_set_exit_node(ip);
+    };
     actions.ping_peer = [&service](const PeerInfo& peer) { service.request_ping(peer); };
     actions.cancel_ping = [&service]() { service.cancel_ping(); };
     actions.navigate = [&manager](ui::Page page) {

@@ -1,5 +1,5 @@
 /**
- * TailZero - common base for the five full-screen pages.
+ * TailZero - common base for the full-screen pages.
  * SPDX-License-Identifier: MIT
  *
  * Owns the fixed chrome shared by every page: the 22 px title bar with its

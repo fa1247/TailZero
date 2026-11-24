@@ -48,6 +48,9 @@ public:
     /** `tailscale down` - disconnect, does NOT stop the tailscaled service. */
     CommandOutcome down(int timeout_ms = 15000);
 
+    /** `tailscale set --exit-node=<ip>`; empty disables, other preferences unchanged. */
+    CommandOutcome set_exit_node(const std::string& ip, int timeout_ms = 15000);
+
     /** `tailscale ip -4` / `-6` (fallback when status JSON has no addresses). */
     bool get_local_ip(std::string& ip4, std::string& ip6, int timeout_ms = 5000);
 

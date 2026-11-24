@@ -22,7 +22,7 @@ fi
 echo "run-tests: compiling"
 g++ -std=c++17 -O1 -g -Wall -Wextra -Wno-unused-parameter -pthread \
     -I src -I tests $@ \
-    $SRCS $TESTS \
+    $SRCS src/app/app_service.cpp src/app/backend_factory.cpp $TESTS \
     -o build/tests/tz_tests
 
 echo "run-tests: running"

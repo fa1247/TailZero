@@ -1,8 +1,9 @@
 # TailZero operator setup
 
 TailZero runs as an ordinary Linux user and never asks for a root password.
-Read-only Tailscale commands work for any user, but **Connect** and **Disconnect**
-(`tailscale up` / `tailscale down`) are privileged operations. Tailscale solves
+Read-only Tailscale commands work for any user, but **Connect**, **Disconnect**
+and **Exit Nodes** (`tailscale up` / `tailscale down` / `tailscale set --exit-node`)
+are privileged operations. Tailscale solves
 this with a per-daemon *operator* user, configured once by an administrator.
 
 This is a deployment step. It is not done by the app, by the `.deb` post-install
@@ -51,7 +52,8 @@ empty operator restores the default "root only" behavior.
 ## What happens without it
 
 The read-only pages (status, device list, ping, netcheck) keep working. When
-Connect/Disconnect fails with a permission error, TailZero shows:
+Connect/Disconnect or an exit-node change fails with a permission error, TailZero
+shows an operator hint (compact on the Exit Nodes page):
 
 ```text
 No permission. Ask the administrator to run:

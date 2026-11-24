@@ -323,6 +323,36 @@ StatusSnapshot parse_status_json(const std::string& text) {
         }
     }
 
+    // ExitNodeStatus can survive when the selected peer has disappeared from
+    // the network map. Do not equate absence/offline with exit-node disabled.
+    const json::Value* exit_node = root.find("ExitNodeStatus");
+    if (exit_node != nullptr && exit_node->is_object()) {
+        snapshot.exit_node_id = exit_node->get_string("ID");
+        if (!snapshot.exit_node_id.empty()) {
+            snapshot.exit_node_online = exit_node->get_bool("Online", false);
+            snapshot.exit_node_ip = first_address(exit_node->find("TailscaleIPs"), false);
+            if (snapshot.exit_node_ip.empty()) {
+                snapshot.exit_node_ip = first_address(exit_node->find("TailscaleIPs"), true);
+            }
+        }
+    }
+    if (!snapshot.exit_node_id.empty()) {
+        for (PeerInfo& peer : snapshot.peers) {
+            peer.exit_node = peer.id == snapshot.exit_node_id;
+            if (peer.exit_node && snapshot.exit_node_ip.empty()) {
+                snapshot.exit_node_ip = peer.ip4.empty() ? peer.ip6 : peer.ip4;
+            }
+        }
+    } else {
+        for (const PeerInfo& peer : snapshot.peers) {
+            if (!peer.exit_node) continue;
+            snapshot.exit_node_id = peer.id;
+            snapshot.exit_node_online = peer.online;
+            snapshot.exit_node_ip = peer.ip4.empty() ? peer.ip6 : peer.ip4;
+            break;
+        }
+    }
+
     std::sort(snapshot.peers.begin(), snapshot.peers.end(), peer_less);
     snapshot.peer_count = static_cast<int>(snapshot.peers.size());
     for (const PeerInfo& peer : snapshot.peers) {

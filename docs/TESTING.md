@@ -20,7 +20,8 @@ bash tools/device/run-tests.sh            # project dir defaults to $PWD
 ```
 
 `run-tests.sh` compiles every `src/tailscale/*.cpp` together with every
-`tests/*.cpp` (`-std=c++17 -O1 -g -Wall -Wextra -pthread -I src -I tests`) into
+`tests/*.cpp`, plus `src/app/app_service.cpp` and `src/app/backend_factory.cpp`
+(`-std=c++17 -O1 -g -Wall -Wextra -pthread -I src -I tests`) into
 `build/tests/tz_tests` and runs it. The binary is a self-contained test runner;
 add files under `tests/` (fixtures in `tests/fixtures/`) to extend coverage.
 
@@ -54,6 +55,7 @@ TAILZERO_MOCK_DIR=tests/fixtures/connected ./build/tailzero
 | `prefs.json` | stdout of `tailscale debug prefs` (operator user) |
 | `version.txt` | stdout of `tailscale version` |
 | `up.txt` / `down.txt` (+ `.exit`) | connect / disconnect output and exit code |
+| `set-exit-node.txt` (+ `.stderr`, `.exit`) | exit-node change result; successful changes update mock status in memory |
 | `ip4.txt` / `ip6.txt` | `tailscale ip -4` / `-6` output |
 | `ping-<ip>.txt` (+ `.exit`) | `tailscale ping <ip>` output and exit code |
 
@@ -70,7 +72,7 @@ Every page can be forced at startup, for UI checks and screenshots:
 
 | Mechanism | Example |
 | --- | --- |
-| Environment | `TAILZERO_DEMO=home \| devices \| details \| ping \| netcheck` |
+| Environment | `TAILZERO_DEMO=home \| devices \| details \| ping \| netcheck \| exit-nodes` |
 | Config | `initial_page=devices` in `~/.config/TailZero/config.ini` |
 | Preview harness | `./build/tailzero-ui-preview devices` |
 
@@ -84,6 +86,7 @@ scenarios are selected with `TAILZERO_DEMO_STATE`:
 
 ```text
 connected (default) | disconnected | derp | offline | login | empty | error | noinstall
+exit-nodes | exit-offline | exit-missing | exit-error | exit-loading | exit-pending
 ```
 
 ### Development run loop (device)
@@ -99,6 +102,42 @@ pwsh tools/dev.ps1 shot  -Slot ui -Binary tailzero -Demo ping -Out .recon/shot-p
 `APPLaunch.service` for the duration of the run and restarts it afterwards.
 **Only one process may own `/dev/fb0` at a time** — coordinate with other people
 or agents before starting a run or capture.
+
+### Exit-node regression checks (issue #1)
+
+Headless UI smoke (no framebuffer or Tailscale required):
+
+```bash
+TAILZERO_DEMO_SMOKE=1 ./build/tailzero-ui-preview
+# Or configure with -DTAILZERO_BUILD_TESTS=ON, build, then:
+ctest --test-dir build --output-on-failure
+```
+
+Host verification for this change (Ubuntu 22.04 / GCC 11.4 / LVGL 9.5):
+`tailzero` and `tailzero-ui-preview` build successfully; **100/100** unit/service
+cases and **21/21** headless UI checks pass (CTest: 2/2 targets). The opt-in
+real-device test is not enabled; real routing and ARM64 hardware acceptance remain
+manual. GCC reports an existing input-device path truncation warning in
+`src/input/keypad.cpp`, outside the exit-node changes.
+
+- Run the unit suite: parser coverage includes top-level `ExitNodeStatus`, legacy
+  peer flags, selected-but-missing/offline peers and IPv6; client tests verify the
+  exact `set --exit-node=<ip>` argv, empty disable argument and rejected invalid IPs.
+- Service tests cover selection/disable followed by authoritative refresh,
+  permission failure retaining the previous selection, unavailable targets and
+  repeated commands not overwriting a pending job.
+- On Home, scroll through all five menu items; `6` opens Exit Nodes. Verify
+  `F`/`X`, arrows, `Enter`/`Space`, short Esc and held Esc.
+- In mock/preview mode, choose an online exit node, switch nodes, then choose None.
+  Ordinary peers must not appear; offline candidates cannot be selected. A selected
+  offline/missing peer must still be displayed and removable via None.
+- Refresh while focus is on a peer: reordering/removal must not silently move the
+  selection to another peer. Check empty lists, long names, pending operation,
+  permission denial, status failure and the 320×170 layout.
+- Real routing changes are **manual, owner-coordinated acceptance only**: note the
+  existing exit-node and LAN-access preferences, select an approved trusted exit,
+  verify internet egress, switch/disable and restore the original preference.
+  Do not change routing on a remote development connection automatically.
 
 ## 4. Package checks
 
@@ -163,7 +202,7 @@ UI (`top -b -n1 -p $(pidof tailzero)`).
 
 - `Up`/`Down` move the selection and scroll lists; `Enter` activates.
 - Short `Esc` goes back (Home: shows "Hold Esc to quit"); holding `Esc` exits.
-- Digits `1`–`5` jump to Home / Devices / Details / Ping / Netcheck.
+- Digits `1`–`6` jump to Home / Devices / Details / Ping / Netcheck / Exit Nodes.
 - Left/Right where offered (details actions, ping Retry/Back).
 - After exiting, APPLaunch returns and the panel is usable again.
 - Long Home hold (launcher forced quit) terminates TailZero cleanly.

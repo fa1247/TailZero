@@ -6,6 +6,7 @@
  *   tailscale status --json
  *   tailscale up
  *   tailscale down
+ *   tailscale set --exit-node=<validated-ip>    (empty value disables)
  *   tailscale ip -4 | tailscale ip -6
  *   tailscale ping <validated-ip>
  *   tailscale netcheck --format=json           (falls back to text output)
@@ -489,7 +490,11 @@ void TailscaleClient::cancel() {
 // status
 // ---------------------------------------------------------------------------
 StatusSnapshot TailscaleClient::get_status(int timeout_ms) {
-    if (mock_mode_enabled()) return mock_status_snapshot();
+    if (mock_mode_enabled()) {
+        StatusSnapshot snapshot = mock_status_snapshot();
+        mock_apply_exit_node(snapshot);
+        return snapshot;
+    }
 
     StatusSnapshot snapshot;
     snapshot.fetched_at_ms = steady_now_ms();
@@ -566,6 +571,33 @@ CommandOutcome TailscaleClient::down(int timeout_ms) {
         return outcome;
     }
     return real_control(runner_, binary_, {binary_, "down"}, "down", timeout_ms);
+}
+
+CommandOutcome TailscaleClient::set_exit_node(const std::string& ip, int timeout_ms) {
+    CommandOutcome outcome;
+    // Validate before mock dispatch or execution. Empty is the explicit disable
+    // request; names, flags, CIDRs, whitespace and shell syntax are never accepted.
+    if (!ip.empty() && !is_valid_ip(ip)) {
+        outcome.error = "Invalid IP address.";
+        return outcome;
+    }
+    if (mock_mode_enabled()) {
+        outcome = mock_control("set-exit-node", "set --exit-node");
+        if (outcome.ok && !mock_select_exit_node(ip, mock_status_snapshot())) {
+            outcome.ok = false;
+            outcome.exit_code = 1;
+            outcome.error = "No matching exit node: the peer must advertise exit-node capability.";
+        }
+        return outcome;
+    }
+    if (binary_.empty()) {
+        outcome.error = kMsgNoBinary;
+        return outcome;
+    }
+    // `set` changes only the specified preference. Never use up/reset here:
+    // those can reconnect or alter unrelated Tailscale preferences.
+    return real_control(runner_, binary_, {binary_, "set", "--exit-node=" + ip},
+                        "set --exit-node", timeout_ms);
 }
 
 // ---------------------------------------------------------------------------

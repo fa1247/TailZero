@@ -23,6 +23,12 @@
  *   version.txt ................. stdout of `tailscale version`
  *   up.txt / down.txt ........... stdout of `tailscale up` / `tailscale down`
  *   up.exit / down.exit ......... exit code for connect/disconnect
+ *   set-exit-node.txt ........... stdout of `tailscale set --exit-node=...`
+ *   set-exit-node.exit .......... exit code; .stderr may simulate permission errors
+ *                                 Missing fixture means success for a known exit
+ *                                 candidate (empty IP always disables). Successful
+ *                                 selection updates subsequent status in memory;
+ *                                 fixtures and unrelated preferences stay intact.
  *   ip4.txt / ip6.txt ........... stdout of `tailscale ip -4` / `ip -6`
  *   ping-<ip>.txt ............... stdout of `tailscale ping <ip>`
  *   ping-<ip>.exit .............. exit code for that ping
@@ -44,6 +50,13 @@
 #include <vector>
 
 namespace tailzero {
+
+struct StatusSnapshot;
+
+/** Simulate the daemon selection; false for unknown/non-exit peers. Single worker only. */
+bool mock_select_exit_node(const std::string& ip, const StatusSnapshot& snapshot);
+/** Apply successful selections to fresh status; reset when the scenario is reset. */
+void mock_apply_exit_node(StatusSnapshot& snapshot);
 
 /** Canned result of one mocked CLI invocation. */
 struct MockCommand {

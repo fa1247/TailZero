@@ -8,16 +8,20 @@
  * Not installed by the package.
  *
  * Usage on device: tailzero-ui-preview [page]
- *   page: home | devices | details | ping | netcheck   (default: home)
+ *   page: home | devices | details | ping | netcheck | exit-nodes (default: home)
  *   env TAILZERO_DEMO=...        overrides the start page
  *   env TAILZERO_DEMO_STATE=...  connected (default) | disconnected | derp |
- *                                offline | login | empty | error | noinstall
+ *                                offline | login | empty | error | noinstall |
+ *                                exit-nodes | exit-offline | exit-missing |
+ *                                exit-error | exit-loading | exit-pending
+ *   env TAILZERO_DEMO_SMOKE=1   runs deterministic exit-node UI assertions and exits
  *
  * Async operations are simulated so the pending/loading states are visible:
  * entering Ping or Netcheck starts a fake job, connect/disconnect complete after
  * a short delay and toasts are published through AppState like the real app.
  * The process never exits by itself: run-app.sh kills it after the capture.
  */
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -138,6 +142,22 @@ StatusSnapshot make_status(const std::string& variant) {
         status.ip4.clear();
         status.ip6.clear();
     }
+    if (variant.compare(0, 5, "exit-") == 0) {
+        for (std::size_t i : {0u, 2u, 3u, 5u, 6u}) status.peers[i].exit_node_option = true;
+        PeerInfo& selected = status.peers[variant == "exit-offline" ? 3 : 2];
+        selected.exit_node = true;
+        // A selected node remains visible even if it stops advertising the option.
+        if (variant == "exit-offline") selected.exit_node_option = false;
+        status.exit_node_id = selected.id;
+        status.exit_node_ip = selected.ip4;
+        status.exit_node_online = selected.online;
+        if (variant == "exit-missing") {
+            selected.exit_node = false;
+            status.exit_node_id = "id-removed-exit-node";
+            status.exit_node_ip = "100.99.88.77";
+            status.exit_node_online = false;
+        }
+    }
     return status;
 }
 
@@ -151,6 +171,9 @@ struct Demo {
     int64_t conn_done_at = -1;
     int64_t refresh_done_at = -1;
     bool connecting = false;
+    int64_t exit_done_at = -1;
+    std::string exit_target;
+    int exit_requests = 0;  // also used by deterministic UI smoke checks
 
     void init(const std::string& variant_name, int64_t now) {
         variant = variant_name;
@@ -174,6 +197,16 @@ struct Demo {
         state.last_refresh_ms = now;
         state.netcheck_state = OpState::Idle;
         state.conn_state = OpState::Idle;
+        if (variant == "exit-error") {
+            state.exit_node_state = OpState::Failed;
+            state.exit_node_message = "Access denied: operator permission required";
+            state.needs_operator_hint = true;
+        }
+        if (variant == "exit-loading") {
+            state.status_loading = true;
+            refresh_done_at = now + 2400;
+        }
+        if (variant == "exit-pending") start_exit_node("100.88.12.4", now);
         /* "nols": online peer whose LastSeen is zeroed by tailscale (DERP peers). */
         if (variant == "nols" && !state.status.peers.empty()) {
             state.status.peers[0].last_seen.clear();
@@ -193,8 +226,17 @@ struct Demo {
         refresh_done_at = now + kRefreshMs;
     }
 
+    void start_exit_node(const std::string& ip, int64_t now) {
+        if (state.busy()) return;
+        ++exit_requests;
+        exit_target = ip;
+        state.exit_node_state = OpState::Pending;
+        state.exit_node_message = ip.empty() ? "Disabling exit node..." : "Applying exit node...";
+        exit_done_at = now + kConnMs;
+    }
+
     void start_connect(bool connect, int64_t now) {
-        if (state.conn_state == OpState::Pending) {
+        if (state.busy()) {
             return;
         }
         connecting = connect;
@@ -235,10 +277,44 @@ struct Demo {
     }
 
     void advance(int64_t now) {
+        if (exit_done_at >= 0 && now >= exit_done_at) {
+            exit_done_at = -1;
+            if (variant == "exit-error") {
+                state.exit_node_state = OpState::Failed;
+                state.exit_node_message = "Access denied: operator permission required";
+                state.needs_operator_hint = true;
+            }
+            else {
+                for (auto& peer : state.status.peers) {
+                    peer.exit_node = !exit_target.empty() &&
+                        (peer.ip4 == exit_target || peer.ip6 == exit_target);
+                    if (peer.exit_node) {
+                        state.status.exit_node_id = peer.id;
+                        state.status.exit_node_online = peer.online;
+                    }
+                }
+                state.status.exit_node_ip = exit_target;
+                if (exit_target.empty()) {
+                    state.status.exit_node_id.clear();
+                    state.status.exit_node_online = false;
+                }
+                state.exit_node_state = OpState::Done;
+                state.exit_node_message = exit_target.empty() ? "Exit node disabled" : "Exit node updated";
+            }
+            post_toast(state.exit_node_message, now);
+        }
         if (refresh_done_at >= 0 && now >= refresh_done_at) {
             refresh_done_at = -1;
             state.status_loading = false;
-            const StatusSnapshot fresh = make_status(variant);
+            StatusSnapshot fresh = make_status(variant);
+            fresh.exit_node_id = state.status.exit_node_id;
+            fresh.exit_node_ip = state.status.exit_node_ip;
+            fresh.exit_node_online = state.status.exit_node_online;
+            for (auto& peer : fresh.peers) {
+                peer.exit_node = (!fresh.exit_node_id.empty() && peer.id == fresh.exit_node_id) ||
+                    (!fresh.exit_node_ip.empty() &&
+                     (peer.ip4 == fresh.exit_node_ip || peer.ip6 == fresh.exit_node_ip));
+            }
             state.status = fresh;
             state.status_error = variant == "error" ? "tailscaled unreachable: connection refused"
                                                     : std::string();
@@ -320,6 +396,146 @@ struct Demo {
     int ui_index = 0;
 };
 
+bool has_label(lv_obj_t* obj, const char* text) {
+    if (lv_obj_check_type(obj, &lv_label_class) &&
+        std::strcmp(lv_label_get_text(obj), text) == 0) return true;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i)
+        if (has_label(lv_obj_get_child(obj, i), text)) return true;
+    return false;
+}
+
+int run_exit_smoke(ScreenManager& sm, Demo& demo, UiModel& ui) {
+    int failed = 0;
+    int checked = 0;
+    auto check = [&](bool condition, const char* description) {
+        ++checked;
+        if (!condition) ++failed;
+        std::fprintf(stderr, "[ui-smoke] %s %s\n", condition ? "PASS" : "FAIL", description);
+    };
+    auto press = [&](uint32_t key) {
+        sm.handle_key(input::KeyEvent{key, true, false, false});
+    };
+    auto reset = [&](const char* variant) {
+        demo = Demo{};
+        demo.init(variant, lv_tick_get());
+        sm.navigate(Page::ExitNodes);
+        sm.tick();
+        for (int i = 0; i < 10; ++i) press(LV_KEY_UP);
+    };
+    press(LV_KEY_DOWN);
+    press(LV_KEY_DOWN);
+    press(LV_KEY_ENTER);
+    check(sm.current_page() == Page::ExitNodes, "Home menu opens Exit Nodes");
+    press(LV_KEY_ESC);
+    press(LV_KEY_DOWN);
+    press(LV_KEY_DOWN);
+    check(ui.home_index == 4 && has_label(lv_screen_active(), "Refresh"),
+          "Home fifth item scrolls into the four-row menu");
+    press('6');
+    check(sm.current_page() == Page::ExitNodes && page_from_string("exit-nodes") == Page::ExitNodes,
+          "key 6 and page parser route to Exit Nodes");
+
+    reset("exit-nodes");
+    press(LV_KEY_DOWN);  // station-pi
+    std::reverse(demo.state.status.peers.begin(), demo.state.status.peers.end());
+    sm.tick();
+    press(LV_KEY_ENTER);
+    check(demo.exit_target == "100.88.12.4" && demo.exit_requests == 1,
+          "stable ID preserves focused target after reorder");
+    check(demo.state.status.exit_node_ip == "100.64.31.8",
+          "selection is not changed optimistically");
+    press(LV_KEY_ENTER);
+    sm.tick();
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 1, "pending operation blocks repeated Enter");
+    sm.navigate(Page::Home);
+    ui.home_index = 3;
+    sm.tick();
+    press(LV_KEY_ENTER);
+    check(demo.state.conn_state == OpState::Idle, "Home blocks connection mutation while applying");
+    sm.navigate(Page::ExitNodes);
+    demo.advance(demo.exit_done_at);
+    sm.tick();
+    check(demo.state.status.exit_node_ip == "100.88.12.4" &&
+          has_label(lv_screen_active(), "* station-pi"), "confirmed snapshot updates selected marker");
+
+    reset("exit-offline");
+    press(LV_KEY_DOWN);
+    press(LV_KEY_DOWN);
+    press(LV_KEY_DOWN);
+    check(has_label(lv_screen_active(), "* workstation"),
+          "offline selected peer stays listed without advertisement");
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 0 && demo.state.toast.find("offline") != std::string::npos,
+          "offline choice is disabled with a toast");
+
+    reset("exit-missing");
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 1 && demo.exit_target.empty(),
+          "None disables current node missing from peers");
+    demo.advance(demo.exit_done_at);
+    sm.tick();
+    check(demo.state.status.exit_node_id.empty() && has_label(lv_screen_active(), "* None (disable)"),
+          "confirmed disable marks None selected");
+
+    reset("exit-nodes");
+    press(LV_KEY_DOWN);
+    demo.state.status.peers.erase(demo.state.status.peers.begin());
+    sm.tick();
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 0 && demo.state.toast.find("disappeared") != std::string::npos,
+          "removed focused peer cannot silently select another target");
+    press(LV_KEY_UP);
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 1 && demo.exit_target.empty(),
+          "explicit navigation acknowledges removed focus and allows None");
+
+    reset("exit-nodes");
+    for (auto& peer : demo.state.status.peers) peer.id.clear();
+    sm.tick();
+    press(LV_KEY_DOWN);
+    std::reverse(demo.state.status.peers.begin(), demo.state.status.peers.end());
+    sm.tick();
+    press(LV_KEY_ENTER);
+    check(demo.exit_target == "100.88.12.4", "stable IP fallback preserves focus without IDs");
+
+    reset("exit-error");
+    demo.state.needs_operator_hint = false;
+    demo.state.exit_node_message = "No permission: sudo tailscale set --operator=$USER";
+    sm.tick();
+    check(has_label(lv_screen_active(), "sudo tailscale set --operator=$USER"),
+          "operator permission hint is visible from operation error alone");
+    press(LV_KEY_DOWN);
+    press(LV_KEY_ENTER);
+    demo.advance(demo.exit_done_at);
+    sm.tick();
+    check(demo.state.exit_node_state == OpState::Failed &&
+          demo.state.status.exit_node_ip == "100.64.31.8", "failed action preserves selected snapshot");
+
+    reset("exit-nodes");
+    demo.state.status.state = BackendState::Stopped;
+    sm.tick();
+    press(LV_KEY_DOWN);
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 0 && demo.state.toast.find("Connect") != std::string::npos,
+          "stopped connection blocks selecting a node");
+    press(LV_KEY_UP);
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 1 && demo.exit_target.empty(), "stopped connection can disable exit node");
+
+    reset("exit-loading");
+    press(LV_KEY_DOWN);
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 0 && has_label(lv_screen_active(), "Loading exit nodes..."),
+          "loading state is visible and blocks mutations");
+    reset("empty");
+    press(LV_KEY_ENTER);
+    check(demo.exit_requests == 0 && has_label(lv_screen_active(), "* None (disable)"),
+          "empty tailnet keeps None and avoids redundant disable");
+    std::fprintf(stderr, "[ui-smoke] %d checks, %d failures\n", checked, failed);
+    return failed == 0 ? 0 : 1;
+}
+
 Page parse_page(const std::string& name) {
     return page_from_string(name, Page::Home);
 }
@@ -336,18 +552,24 @@ int main(int argc, char** argv) {
     if (state_name.empty()) {
         state_name = "connected";
     }
+    const bool smoke = env_or_empty("TAILZERO_DEMO_SMOKE") == "1";
+    if (smoke) {
+        page_name = "home";
+        state_name = "exit-nodes";
+    }
     const Page initial = parse_page(page_name);
     std::fprintf(stderr, "[preview] page=%s state=%s\n", page_name.c_str(), state_name.c_str());
 
     init_lvgl();
-    lv_display_t* display = create_display(nullptr);
+    // Smoke mode constructs the real 320x170 widget tree without a framebuffer.
+    lv_display_t* display = smoke ? lv_display_create(320, 170) : create_display(nullptr);
     if (!display) {
         std::fprintf(stderr, "[preview] display init failed\n");
         return 1;
     }
 
     input::Keypad keypad;
-    keypad.init(display, nullptr);
+    if (!smoke) keypad.init(display, nullptr);
 
     UiModel ui;
     ui.page = initial;
@@ -391,6 +613,7 @@ int main(int argc, char** argv) {
     actions.refresh = [&demo, now]() { demo.start_refresh(now()); };
     actions.connect = [&demo, now]() { demo.start_connect(true, now()); };
     actions.disconnect = [&demo, now]() { demo.start_connect(false, now()); };
+    actions.set_exit_node = [&demo, now](std::string ip) { demo.start_exit_node(ip, now()); };
     actions.netcheck = [&demo, now]() { demo.start_netcheck(now()); };
     actions.cancel_ping = [&demo, now]() { demo.cancel_ping(now()); };
     actions.ping_peer = [&demo, now](const PeerInfo& peer) {
@@ -444,6 +667,8 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "[preview] screen init failed\n");
         return 1;
     }
+
+    if (smoke) return run_exit_smoke(sm, demo, ui);
 
     keypad.set_handler([&sm](const input::KeyEvent& event) { return sm.handle_key(event); });
 

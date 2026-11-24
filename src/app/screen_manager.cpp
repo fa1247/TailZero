@@ -133,8 +133,8 @@ bool ScreenManager::handle_key(const input::KeyEvent& event) {
         return true;
     }
 
-    /* Digits 1..5 jump between pages, 1 = Home. */
-    if (event.key >= '1' && event.key <= '5') {
+    /* Digits 1..6 jump between pages, 1 = Home, 6 = Exit Nodes. */
+    if (event.key >= '1' && event.key <= '6') {
         const int target = static_cast<int>(event.key - '1');
         if (target < static_cast<int>(kPageCount)) {
             navigate(static_cast<Page>(target));
@@ -151,6 +151,7 @@ const char* to_string(Page page) {
         case Page::Details: return "Device";
         case Page::Ping: return "Ping";
         case Page::Netcheck: return "Netcheck";
+        case Page::ExitNodes: return "Exit Nodes";
     }
     return "Home";
 }
@@ -161,6 +162,7 @@ Page page_from_string(const std::string& name, Page fallback) {
     if (name == "details") return Page::Details;
     if (name == "ping") return Page::Ping;
     if (name == "netcheck") return Page::Netcheck;
+    if (name == "exit-nodes" || name == "exitnodes" || name == "exit_nodes") return Page::ExitNodes;
     return fallback;
 }
 

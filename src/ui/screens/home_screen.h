@@ -30,7 +30,11 @@ private:
     void apply_selection(UiModel& ui);
     void activate(UiModel& ui);
 
-    static constexpr int kMenuCount = 4;
+    static constexpr int kMenuCount = 5;
+    static constexpr int kVisibleRows = 4;
+    int menu_scroll_ = 0;
+    int peer_count_ = 0;
+    bool busy_ = false;
 
     lv_obj_t* hero_ = nullptr;
     lv_obj_t* peers_ = nullptr;
@@ -39,7 +43,7 @@ private:
     lv_obj_t* tailnet_ = nullptr;
     lv_obj_t* activity_ = nullptr;
     widgets::Spinner spinner_;
-    widgets::ListRow menu_[kMenuCount];
+    widgets::ListRow menu_[kVisibleRows];
 
     std::string hero_text_;
     std::string peers_text_;

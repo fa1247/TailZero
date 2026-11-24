@@ -24,11 +24,12 @@ enum class Page {
     Details,
     Ping,
     Netcheck,
+    ExitNodes,
 };
 
 const char* to_string(Page page);
 
-/** Parse a page name ("home", "devices", "details", "ping", "netcheck"). */
+/** Parse a page name ("home", "devices", "details", "ping", "netcheck", "exit-nodes"). */
 Page page_from_string(const std::string& name, Page fallback = Page::Home);
 
 /** Navigation/selection state owned by the UI layer (not the backend). */
@@ -48,6 +49,7 @@ struct Actions {
     std::function<void()> refresh;
     std::function<void()> connect;
     std::function<void()> disconnect;
+    std::function<void(std::string)> set_exit_node;  ///< Tailscale IP; empty disables
     std::function<void()> netcheck;
     std::function<void(const tailzero::PeerInfo&)> ping_peer;
     std::function<void()> cancel_ping;

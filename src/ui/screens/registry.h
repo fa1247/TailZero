@@ -13,13 +13,13 @@ namespace tailzero::ui {
 
 /**
  * Create all application screens, indexed by Page order:
- *   0 Home, 1 Devices, 2 Details, 3 Ping, 4 Netcheck.
+ *   0 Home, 1 Devices, 2 Details, 3 Ping, 4 Netcheck, 5 ExitNodes.
  * The returned vector must contain exactly one screen per Page value.
  */
 std::vector<std::unique_ptr<Screen>> create_all_screens(const Actions& actions, UiModel& ui);
 
 /** Number of pages (must match the Page enum). */
-constexpr std::size_t kPageCount = 5;
+constexpr std::size_t kPageCount = 6;
 
 std::size_t page_index(Page page);
 

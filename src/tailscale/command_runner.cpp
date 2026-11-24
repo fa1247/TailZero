@@ -354,14 +354,17 @@ CommandResult CommandRunner::run_impl(const std::vector<std::string>& argv, int 
             }
         }
 
+        // cancel_current() sends SIGTERM immediately. The child can therefore
+        // be reaped and both pipes reach EOF before this iteration observes the
+        // request. Latch cancellation before either early-exit condition.
+        const bool cancel_now = stop_requested || cancel_requested_.load(std::memory_order_acquire);
+        if (cancel_now) result.cancelled = true;
         if (child_exited && out_eof && err_eof) break;
         if (child_exited && monotonic_ms() - exit_seen_ms > kDrainAfterExitMs) break;
 
         const std::int64_t now = monotonic_ms();
-        const bool cancel_now = stop_requested || cancel_requested_.load(std::memory_order_acquire);
         const bool timeout_now = deadline_ms != 0 && now >= deadline_ms && !child_exited;
-        if ((cancel_now || timeout_now) && !kill_sent) {
-            if (cancel_now) result.cancelled = true;
+        if ((cancel_now || timeout_now) && !kill_sent && !child_exited) {
             if (timeout_now) result.timed_out = true;
             if (!term_sent) {
                 ::kill(pid, SIGTERM);

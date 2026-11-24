@@ -1,0 +1,2 @@
+Access denied: no permission to manage Tailscale. Set operator by running:
+sudo tailscale set --operator=$USER

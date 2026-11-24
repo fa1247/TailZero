@@ -95,9 +95,13 @@ if [ -n "$CMAKE_VERSION" ] && [ "$CMAKE_VERSION" != "$VERSION" ]; then
 fi
 
 # --- staging tree -----------------------------------------------------------
-STAGE="$PROJECT_DIR/build/deb/stage"
+# Use the host's temporary filesystem, not the checkout: WSL/Windows mounts
+# without metadata cannot preserve Debian's required Unix modes/ownership.
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/tailzero-package.XXXXXXXX")"
+[ -d "$STAGE" ] && [ ! -L "$STAGE" ] || die "invalid temporary staging directory"
+trap 'rm -rf -- "$STAGE"' EXIT
+chmod 0755 "$STAGE"
 log "staging in $STAGE"
-rm -rf "$STAGE"
 mkdir -p "$STAGE/DEBIAN" \
          "$STAGE/usr/bin" \
          "$STAGE/usr/share/tailzero" \
@@ -120,7 +124,8 @@ done
 # $HOME/.config/TailZero/config.ini.
 if [ -d "$ASSETS" ]; then
     cp -a "$ASSETS/." "$STAGE/usr/share/tailzero/"
-    chmod -R a+rX,go-w "$STAGE/usr/share/tailzero"
+    # Runtime assets are data, not executables (Windows mounts report all as +x).
+    chmod -R a-x,a+rX,go-w "$STAGE/usr/share/tailzero"
 fi
 
 install -m 0644 "$PROJECT_DIR/README.md" "$STAGE/usr/share/doc/tailzero/README.md"
@@ -149,7 +154,7 @@ if ! command -v tailscale >/dev/null 2>&1; then
     echo "tailzero: install Tailscale, then reopen TailZero." >&2
 fi
 
-echo "tailzero: one-time setup for Connect / Disconnect (run as the desktop user):"
+echo "tailzero: one-time setup for Connect / Disconnect / Exit Nodes (run as the desktop user):"
 echo "tailzero:     sudo tailscale set --operator=<your-user>"
 echo "tailzero: read-only status, ping and netcheck already work without it."
 echo "tailzero: restart APPLaunch (systemctl --user restart APPLaunch.service) to show the new entry."
@@ -175,8 +180,8 @@ Description: $APP_NAME - Tailscale mesh manager for Cardputer Zero
  (Raspberry Pi CM0, Debian arm64). TailZero shows the current connection
  state, Tailscale IPv4/IPv6 addresses, tailnet name, the peer list with
  online/offline state and DIRECT/DERP relay paths, runs Tailscale ping and
- netcheck, and can bring the tailnet connection up or down through the
- official tailscale CLI.
+ netcheck, selects or disables an exit node, and can bring the tailnet
+ connection up or down through the official tailscale CLI.
  .
  It runs as a normal user and never requires root: read-only commands work
  out of the box, and connection control needs the one-time deployment step
@@ -197,8 +202,7 @@ dpkg-deb --build --root-owner-group "$STAGE" "$DEB_FILE" >/dev/null
 log "control fields"
 dpkg-deb -f "$DEB_FILE" Package Version Architecture Depends Recommends
 log "maintainer scripts"
-CTRL_EXTRACT="$PROJECT_DIR/build/deb/control-extract"
-rm -rf "$CTRL_EXTRACT"
+CTRL_EXTRACT="$STAGE/.control-extract"
 dpkg-deb -e "$DEB_FILE" "$CTRL_EXTRACT" 2>/dev/null || true
 ls -l "$CTRL_EXTRACT" 2>/dev/null | grep -E 'postinst|prerm|postrm' || echo "(none)"
 rm -rf "$CTRL_EXTRACT"

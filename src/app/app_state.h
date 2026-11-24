@@ -44,6 +44,10 @@ struct AppState {
     std::string conn_message;      ///< progress text or error detail
     std::string auth_url;          ///< login URL when the node needs authentication
 
+    // ---- exit node preference ----
+    OpState exit_node_state = OpState::Idle;
+    std::string exit_node_message;
+
     // ---- ping ----
     OpState ping_state = OpState::Idle;
     PingResult ping;
@@ -66,7 +70,8 @@ struct AppState {
 
     bool busy() const {
         return status_loading || conn_state == OpState::Pending ||
-               ping_state == OpState::Pending || netcheck_state == OpState::Pending;
+               ping_state == OpState::Pending || netcheck_state == OpState::Pending ||
+               exit_node_state == OpState::Pending;
     }
 };
 

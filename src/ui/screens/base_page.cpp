@@ -1,5 +1,5 @@
 /**
- * TailZero - common base for the five full-screen pages.
+ * TailZero - common base for the full-screen pages.
  * SPDX-License-Identifier: MIT
  */
 #include "ui/screens/base_page.h"

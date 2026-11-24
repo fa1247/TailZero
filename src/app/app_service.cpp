@@ -66,8 +66,9 @@ std::string extract_auth_url(const std::string& text) {
 
 }  // namespace
 
-AppService::AppService(AppConfig config)
-    : config_(std::move(config)), backend_(create_tailscale_backend()) {}
+AppService::AppService(AppConfig config, std::unique_ptr<ITailscaleBackend> backend)
+    : config_(std::move(config)),
+      backend_(backend ? std::move(backend) : create_tailscale_backend()) {}
 
 AppService::~AppService() { stop(); }
 
@@ -121,9 +122,45 @@ void AppService::request_refresh(bool immediate) {
     cv_.notify_one();
 }
 
+bool AppService::operation_pending() const {
+    return (pending_job_ != Job::None && pending_job_ != Job::Refresh) ||
+           state_.conn_state == OpState::Pending || state_.ping_state == OpState::Pending ||
+           state_.netcheck_state == OpState::Pending || state_.exit_node_state == OpState::Pending;
+}
+
+void AppService::request_set_exit_node(const std::string& ip) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (operation_pending()) {
+            return;
+        }
+        // Recheck the latest snapshot, not the UI's potentially stale peer list.
+        if (!ip.empty()) {
+            const auto& status = state_.status;
+            const auto candidate = std::find_if(status.peers.begin(), status.peers.end(),
+                [&](const PeerInfo& peer) {
+                    return peer.exit_node_option && peer.online &&
+                           (peer.ip4 == ip || peer.ip6 == ip);
+                });
+            if (!status.parsed || status.state != BackendState::Running ||
+                candidate == status.peers.end()) {
+                state_.exit_node_state = OpState::Failed;
+                state_.exit_node_message = "Exit node unavailable. Refresh and try again.";
+                return;
+            }
+        }
+        pending_exit_node_ip_ = ip;
+        pending_job_ = Job::SetExitNode;
+        state_.exit_node_state = OpState::Pending;
+        state_.exit_node_message = ip.empty() ? "Disabling exit node..." : "Setting exit node...";
+    }
+    cv_.notify_one();
+}
+
 void AppService::request_connect() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (operation_pending()) return;
         pending_job_ = Job::Connect;
         state_.conn_state = OpState::Pending;
         state_.conn_message = "Connecting...";
@@ -135,6 +172,7 @@ void AppService::request_connect() {
 void AppService::request_disconnect() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (operation_pending()) return;
         pending_job_ = Job::Disconnect;
         state_.conn_state = OpState::Pending;
         state_.conn_message = "Disconnecting...";
@@ -145,6 +183,7 @@ void AppService::request_disconnect() {
 void AppService::request_ping(const PeerInfo& peer) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (operation_pending()) return;
         pending_job_ = Job::Ping;
         pending_peer_ = peer;
         state_.ping_state = OpState::Pending;
@@ -168,6 +207,7 @@ void AppService::cancel_ping() {
 void AppService::request_netcheck() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (operation_pending()) return;
         pending_job_ = Job::Netcheck;
         state_.netcheck_state = OpState::Pending;
         state_.netcheck_error.clear();
@@ -186,6 +226,7 @@ void AppService::worker_loop() {
     while (!stopping_.load()) {
         Job job = Job::None;
         PeerInfo peer;
+        std::string exit_node_ip;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             cv_.wait_for(lock, std::chrono::milliseconds(250), [this]() {
@@ -197,6 +238,7 @@ void AppService::worker_loop() {
             job = pending_job_;
             pending_job_ = Job::None;
             peer = pending_peer_;
+            exit_node_ip = pending_exit_node_ip_;
         }
 
         if (job == Job::None) {
@@ -214,6 +256,7 @@ void AppService::worker_loop() {
             case Job::Disconnect: do_disconnect(); break;
             case Job::Ping: do_ping(peer); break;
             case Job::Netcheck: do_netcheck(); break;
+            case Job::SetExitNode: do_set_exit_node(exit_node_ip); break;
             case Job::None: break;
         }
     }
@@ -352,6 +395,32 @@ void AppService::do_disconnect() {
         });
     }
     do_refresh(false);
+}
+
+void AppService::do_set_exit_node(const std::string& ip) {
+    const CommandOutcome outcome = backend_ ? backend_->set_exit_node(ip, 15000) : CommandOutcome{};
+    const std::string detail = outcome.error.empty() ? outcome.output : outcome.error;
+    // Only refreshed daemon status determines the selected marker. Even failed
+    // or timed-out commands may have reached the daemon, so always reconcile.
+    do_refresh(false);
+    publish([&](AppState& state) {
+        state.exit_node_state = outcome.ok ? OpState::Done : OpState::Failed;
+        if (outcome.ok) {
+            state.exit_node_message = state.status.parsed
+                ? (ip.empty() ? "Exit node disabled" : "Exit node preference saved")
+                : "Saved; status unavailable. Refresh to verify.";
+        }
+        else if (looks_like_permission_error(detail)) {
+            state.exit_node_message = "No permission: sudo tailscale set --operator=$USER";
+        }
+        else if (outcome.timed_out) {
+            state.exit_node_message = "Exit node change timed out. Refresh to verify.";
+        }
+        else {
+            state.exit_node_message = first_line(detail).empty()
+                ? "Could not change exit node" : first_line(detail);
+        }
+    });
 }
 
 void AppService::do_ping(const PeerInfo& peer) {

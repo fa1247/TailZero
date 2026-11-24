@@ -28,6 +28,9 @@ public:
     StatusSnapshot get_status(int timeout_ms) override { return client_.get_status(timeout_ms); }
     CommandOutcome up(int timeout_ms) override { return client_.up(timeout_ms); }
     CommandOutcome down(int timeout_ms) override { return client_.down(timeout_ms); }
+    CommandOutcome set_exit_node(const std::string& ip, int timeout_ms) override {
+        return client_.set_exit_node(ip, timeout_ms);
+    }
 
     PingResult ping(const std::string& ip, int timeout_ms,
                     const std::function<void(const std::string&)>& on_progress,

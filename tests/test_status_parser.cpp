@@ -295,6 +295,69 @@ TZ_TEST(status_not_logged_in_text_is_not_json) {
     TZ_CHECK(!snapshot.error.empty());
 }
 
+TZ_TEST(status_exit_node_summary_from_legacy_peer) {
+    StatusSnapshot snapshot;
+    TZ_REQUIRE(load_status_fixture("multi-peers", snapshot));
+    TZ_CHECK_EQ(snapshot.exit_node_id, std::string("nDesktop00008CNTRL"));
+    TZ_CHECK_EQ(snapshot.exit_node_ip, std::string("100.64.2.40"));
+    TZ_CHECK(snapshot.exit_node_online);
+    const StatusSnapshot offline = parse_status_json(R"({"Peer":{"nodekey:exit":{
+        "ID":"nOffline", "ExitNode":true, "Online":false,
+        "TailscaleIPs":["fd7a:115c:a1e0::10"]}}})");
+    TZ_CHECK_EQ(offline.exit_node_id, std::string("nOffline"));
+    TZ_CHECK_EQ(offline.exit_node_ip, std::string("fd7a:115c:a1e0::10"));
+    TZ_CHECK(!offline.exit_node_online);
+}
+
+TZ_TEST(status_exit_node_summary_without_peer) {
+    const StatusSnapshot snapshot = parse_status_json(R"({
+        "BackendState":"Running", "Peer":null,
+        "ExitNodeStatus":{"ID":"nMissing", "Online":false,
+            "TailscaleIPs":["fd7a:115c:a1e0::10", "100.64.1.10"]}})");
+    TZ_CHECK(snapshot.parsed);
+    TZ_CHECK(snapshot.peers.empty());
+    TZ_CHECK_EQ(snapshot.exit_node_id, std::string("nMissing"));
+    TZ_CHECK_EQ(snapshot.exit_node_ip, std::string("100.64.1.10"));
+    TZ_CHECK(!snapshot.exit_node_online);
+    const StatusSnapshot ipv6 = parse_status_json(R"({"ExitNodeStatus":{
+        "ID":"nV6", "Online":true, "TailscaleIPs":["fd7a:115c:a1e0::20"]}})");
+    TZ_CHECK_EQ(ipv6.exit_node_id, std::string("nV6"));
+    TZ_CHECK_EQ(ipv6.exit_node_ip, std::string("fd7a:115c:a1e0::20"));
+    TZ_CHECK(ipv6.exit_node_online);
+}
+
+TZ_TEST(status_exit_node_top_level_is_authoritative) {
+    const StatusSnapshot snapshot = parse_status_json(R"({
+        "ExitNodeStatus":{"ID":"nSelected", "Online":false},
+        "Peer":{
+            "nodekey:old":{"ID":"nOld", "ExitNode":true, "Online":true},
+            "nodekey:selected":{"ID":"nSelected", "ExitNode":false, "Online":true,
+                "TailscaleIPs":["100.64.1.20"]}}})");
+    TZ_CHECK_EQ(snapshot.exit_node_id, std::string("nSelected"));
+    TZ_CHECK_EQ(snapshot.exit_node_ip, std::string("100.64.1.20"));
+    TZ_CHECK(!snapshot.exit_node_online);  // use summary, not conflicting peer state
+    for (const PeerInfo& peer : snapshot.peers) {
+        TZ_CHECK_EQ(peer.exit_node, peer.id == "nSelected");
+    }
+}
+
+TZ_TEST(status_exit_node_absent_null_and_malformed) {
+    for (const std::string& text : {std::string("{}"),
+            std::string(R"({"ExitNodeStatus":null})"),
+            std::string(R"({"ExitNodeStatus":"bad"})"),
+            std::string(R"({"ExitNodeStatus":{"Online":true,"TailscaleIPs":["100.64.1.1"]}})")}) {
+        const StatusSnapshot snapshot = parse_status_json(text);
+        TZ_CHECK(snapshot.parsed);
+        TZ_CHECK(snapshot.exit_node_id.empty());
+        TZ_CHECK(snapshot.exit_node_ip.empty());
+        TZ_CHECK(!snapshot.exit_node_online);
+    }
+    const StatusSnapshot legacy = parse_status_json(R"({"ExitNodeStatus":null,
+        "Peer":{"nodekey:exit":{"ExitNode":true,"Online":true}}})");
+    TZ_CHECK_EQ(legacy.exit_node_id, std::string("nodekey:exit"));
+    TZ_CHECK(legacy.exit_node_online);
+}
+
 TZ_TEST(backend_state_from_string) {
     TZ_CHECK_EQ(backend_state_from_string("NoState"), BackendState::NoState);
     TZ_CHECK_EQ(backend_state_from_string("NeedsLogin"), BackendState::NeedsLogin);

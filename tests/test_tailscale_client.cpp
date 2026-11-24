@@ -49,6 +49,7 @@ public:
             "tailscale", "status.out", "status.err", "status.code", "up.out", "up.err",
             "up.code", "down.out", "down.err", "down.code", "ping.out", "ping.err",
             "ping.code", "ping.slow", "version.out", "ip.out",
+            "set.out", "set.err", "set.code", "set.slow", "argv.txt",
         };
         for (const char* name : kNames) {
             const std::string path = path_ + "/" + name;
@@ -82,6 +83,10 @@ private:
 const char* const kFakeTailscaleScript = R"SH(#!/bin/sh
 d=$(dirname "$0")
 cmd="$1"
+printf '%s\n' "$@" >> "$d/argv.txt"
+if [ "$cmd" = "set" ] && [ -f "$d/set.slow" ]; then
+  exec sleep 3
+fi
 if [ "$cmd" = "ping" ] && [ -f "$d/ping.slow" ]; then
   exec sleep 3
 fi
@@ -330,6 +335,128 @@ TZ_TEST(client_mock_error_scenarios) {
 // ---------------------------------------------------------------------------
 // real subprocess path, using a fake `tailscale` script
 // ---------------------------------------------------------------------------
+TZ_TEST(client_exit_node_exact_argv_and_disable) {
+    use_real_runner();
+    TempDir directory;
+    TZ_REQUIRE(directory.valid());
+    TZ_REQUIRE(directory.write_executable("tailscale", kFakeTailscaleScript));
+    TailscaleClient client;
+    client.set_binary(directory.path() + "/tailscale");
+
+    TZ_CHECK(client.set_exit_node("100.64.1.10").ok);
+    TZ_CHECK(client.set_exit_node("fd7a:115c:a1e0::1").ok);
+    TZ_CHECK(client.set_exit_node("").ok);
+    std::string argv;
+    TZ_REQUIRE(tztest::read_file(directory.path() + "/argv.txt", argv));
+    // No `up`, `reset`, or additional preference flags may be sent.
+    TZ_CHECK_EQ(argv, std::string("set\n--exit-node=100.64.1.10\n"
+                                  "set\n--exit-node=fd7a:115c:a1e0::1\n"
+                                  "set\n--exit-node=\n"));
+}
+
+TZ_TEST(client_exit_node_invalid_input_never_executes) {
+    use_real_runner();
+    TempDir directory;
+    TZ_REQUIRE(directory.valid());
+    TZ_REQUIRE(directory.write_executable("tailscale", kFakeTailscaleScript));
+    TailscaleClient client;
+    client.set_binary(directory.path() + "/tailscale");
+    const std::vector<std::string> invalid = {
+        "hostname", "--reset", "100.64.1.10;echo unsafe", "100.64.1.256",
+        "100.64.1.10/32", " 100.64.1.10", "100.64.1.10\n", "[::1]",
+        "fe80::1%eth0", "::gg", std::string("100.64.1.10\0--reset", 18),
+    };
+    for (const auto& ip : invalid) {
+        const CommandOutcome result = client.set_exit_node(ip);
+        TZ_CHECK(!result.ok);
+        TZ_CHECK_EQ(result.exit_code, -1);
+        TZ_CHECK_EQ(result.error, std::string("Invalid IP address."));
+    }
+    std::string argv;
+    TZ_CHECK(!tztest::read_file(directory.path() + "/argv.txt", argv));
+}
+
+TZ_TEST(client_exit_node_failures_and_timeout) {
+    use_real_runner();
+    TempDir directory;
+    TZ_REQUIRE(directory.valid());
+    TZ_REQUIRE(directory.write_executable("tailscale", kFakeTailscaleScript));
+    TZ_REQUIRE(directory.write("set.err", "Access denied: check operator permission\n"));
+    TZ_REQUIRE(directory.write("set.code", "1\n"));
+    TailscaleClient client;
+    client.set_binary(directory.path() + "/tailscale");
+    const CommandOutcome denied = client.set_exit_node("100.64.1.10");
+    TZ_CHECK(!denied.ok);
+    TZ_CHECK_EQ(denied.exit_code, 1);
+    TZ_CHECK(denied.error.find("Permission denied") != std::string::npos);
+    TZ_REQUIRE(directory.write("set.slow", "1\n"));
+    const CommandOutcome timeout = client.set_exit_node("", 100);
+    TZ_CHECK(!timeout.ok);
+    TZ_CHECK(timeout.timed_out);
+    TZ_CHECK_EQ(timeout.error, std::string("Command timed out."));
+    client.set_binary("");
+    TZ_CHECK(client.set_exit_node("").error.find("not found") != std::string::npos);
+}
+
+TZ_TEST(client_mock_exit_node_selection_switch_disable) {
+    MockGuard guard("exit-nodes");
+    TailscaleClient client;
+    const StatusSnapshot initial = client.get_status();
+    TZ_REQUIRE(initial.parsed);
+    TZ_CHECK_EQ(initial.exit_node_id, std::string("nExit4"));
+    TZ_CHECK(client.set_exit_node("fd7a:115c:a1e0:0:0:0:0:20").ok);
+    const StatusSnapshot selected = client.get_status();
+    TZ_CHECK_EQ(selected.exit_node_id, std::string("nExit6"));
+    TZ_CHECK_EQ(selected.exit_node_ip, std::string("fd7a:115c:a1e0::20"));
+    TZ_CHECK(selected.exit_node_online);
+    int selected_count = 0;
+    for (const PeerInfo& peer : selected.peers) {
+        if (peer.exit_node) { ++selected_count; TZ_CHECK_EQ(peer.id, std::string("nExit6")); }
+    }
+    TZ_CHECK_EQ(selected_count, 1);
+    TZ_CHECK_EQ(selected.state, initial.state);
+    TZ_CHECK_EQ(selected.ip4, initial.ip4);
+    TZ_CHECK_EQ(selected.peer_count, initial.peer_count);
+    TailscaleClient second_client;
+    TZ_CHECK_EQ(second_client.get_status().exit_node_id, selected.exit_node_id);
+    TZ_CHECK(!client.set_exit_node("100.64.1.99").ok);  // unknown peer
+    TZ_CHECK(!client.set_exit_node("100.64.1.40").ok);  // ordinary peer
+    TZ_CHECK(!client.set_exit_node("--reset").ok);      // invalid even in mock mode
+    TZ_CHECK_EQ(client.get_status().exit_node_id, selected.exit_node_id);
+    TZ_CHECK(client.set_exit_node("100.64.1.30").ok);   // selected but offline
+    TZ_CHECK(!client.get_status().exit_node_online);
+    TZ_CHECK_EQ(client.get_status().exit_node_id, std::string("nOffline"));
+    TZ_CHECK(client.set_exit_node("").ok);
+    const StatusSnapshot disabled = client.get_status();
+    TZ_CHECK(disabled.exit_node_id.empty());
+    TZ_CHECK(disabled.exit_node_ip.empty());
+    TZ_CHECK(!disabled.exit_node_online);
+    for (const PeerInfo& peer : disabled.peers) {
+        TZ_CHECK(!peer.exit_node);
+        for (const PeerInfo& original : initial.peers) {
+            if (peer.id == original.id) TZ_CHECK_EQ(peer.exit_node_option, original.exit_node_option);
+        }
+    }
+    // Resetting the scenario restores the fixture without ever rewriting it.
+    set_mock_root_for_testing(tztest::fixtures_dir() + "/exit-nodes");
+    TZ_CHECK_EQ(client.get_status().exit_node_id, initial.exit_node_id);
+}
+
+TZ_TEST(client_mock_exit_node_permission_failure_keeps_selection) {
+    MockGuard guard("exit-node-permission-denied");
+    TailscaleClient client;
+    const StatusSnapshot before = client.get_status();
+    TZ_REQUIRE(before.parsed);
+    for (const std::string& ip : {std::string("100.64.1.10"), std::string()}) {
+        const CommandOutcome result = client.set_exit_node(ip);
+        TZ_CHECK(!result.ok);
+        TZ_CHECK_EQ(result.exit_code, 1);
+        TZ_CHECK(result.error.find("Permission denied") != std::string::npos);
+        TZ_CHECK_EQ(client.get_status().exit_node_id, before.exit_node_id);
+        TZ_CHECK_EQ(client.get_status().exit_node_ip, before.exit_node_ip);
+    }
+}
+
 TZ_TEST(client_real_binary_end_to_end) {
     use_real_runner();
     TZ_REQUIRE(!tztest::fixtures_dir().empty());

@@ -26,7 +26,8 @@ namespace tailzero {
 
 class AppService {
 public:
-    explicit AppService(AppConfig config);
+    explicit AppService(AppConfig config,
+                        std::unique_ptr<ITailscaleBackend> backend = nullptr);
     ~AppService();
     AppService(const AppService&) = delete;
     AppService& operator=(const AppService&) = delete;
@@ -44,6 +45,8 @@ public:
     void request_ping(const PeerInfo& peer);
     void cancel_ping();
     void request_netcheck();
+    /** Empty IP disables the exit node; other targets must be online candidates. */
+    void request_set_exit_node(const std::string& ip);
 
     /** Show a transient message in the UI (also used by screens via Actions). */
     void show_toast(const std::string& message);
@@ -58,6 +61,7 @@ private:
         Disconnect,
         Ping,
         Netcheck,
+        SetExitNode,
     };
 
     void worker_loop();
@@ -66,6 +70,8 @@ private:
     void do_disconnect();
     void do_ping(const PeerInfo& peer);
     void do_netcheck();
+    void do_set_exit_node(const std::string& ip);
+    bool operation_pending() const;  ///< caller holds mutex_
     void post_toast(const std::string& message);
     void publish(const std::function<void(AppState&)>& mutate);
 
@@ -79,6 +85,7 @@ private:
     AppState state_;
     Job pending_job_ = Job::None;
     PeerInfo pending_peer_;
+    std::string pending_exit_node_ip_;
 
     std::atomic<bool> stopping_{false};
     std::atomic<bool> cancel_ping_{false};

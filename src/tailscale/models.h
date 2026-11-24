@@ -83,6 +83,12 @@ struct StatusSnapshot {
     std::string tailnet_suffix;       ///< MagicDNS suffix, e.g. "tail1234.ts.net"
     std::string version;
 
+    // Selected exit node, even when it is offline or absent from Peer. Sourced
+    // from ExitNodeStatus, with Peer.ExitNode fallback for older CLI versions.
+    std::string exit_node_id;         ///< stable ID; empty when no selected exit node
+    bool exit_node_online = false;   ///< false when offline or unknown
+    std::string exit_node_ip;         ///< selected node IPv4, else IPv6; may be unknown
+
     std::vector<PeerInfo> peers;      ///< every peer, stable order: online first then name
     int peer_count = 0;
     int online_count = 0;
@@ -148,7 +154,7 @@ struct NetcheckReport {
     std::string raw_excerpt;
 };
 
-/** Generic result of a mutating command (`tailscale up` / `down`). */
+/** Generic result of a mutating command (`tailscale up` / `down` / `set`). */
 struct CommandOutcome {
     bool ok = false;
     int exit_code = -1;
